@@ -654,6 +654,41 @@
       line-height: 1.5;
     }
 
+    .ocr-candidates {
+      display: none;
+      gap: 7px;
+    }
+
+    .ocr-candidates.show {
+      display: grid;
+    }
+
+    .ocr-candidates-title {
+      margin: 2px 0 0;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .candidate-btn {
+      min-height: 44px;
+      border: 1px solid rgba(50, 103, 141, .38);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 10px;
+      text-align: left;
+      font-weight: 900;
+      line-height: 1.35;
+    }
+
+    .candidate-btn span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
     .hint {
       margin: -3px 0 0;
       color: var(--muted);
@@ -837,6 +872,7 @@
                 <button type="button" id="useOcrAsTitle">予定名に入れる</button>
                 <button type="button" id="addOcrToMemo">メモに追加</button>
               </div>
+              <div class="ocr-candidates" id="ocrCandidates" aria-live="polite"></div>
             </div>
 
             <div class="template-box">
@@ -935,6 +971,7 @@
       ocrText: document.querySelector("#ocrTextInput"),
       useOcrAsTitle: document.querySelector("#useOcrAsTitle"),
       addOcrToMemo: document.querySelector("#addOcrToMemo"),
+      ocrCandidates: document.querySelector("#ocrCandidates"),
       templateButtons: document.querySelector("#templateButtons"),
       customItem: document.querySelector("#customItemInput"),
       addCustomItem: document.querySelector("#addCustomItem"),
@@ -1027,6 +1064,7 @@
         selectedSourceImage = null;
         els.filePreview.classList.remove("show");
         els.ocrText.value = "";
+        renderOcrCandidates([]);
         els.ocrStatus.textContent = "スクショを選ぶと、日付・予定・持ち物の下書きを作れます。";
         if (!file) return;
         if (!file.type.startsWith("image/")) {
@@ -1102,6 +1140,7 @@
         els.previewImage.removeAttribute("src");
         els.previewText.textContent = "";
         els.ocrText.value = "";
+        renderOcrCandidates([]);
         els.ocrStatus.textContent = "スクショを選ぶと、日付・予定・持ち物の下書きを作れます。";
         renderChildOptions();
         renderTemplateButtons();
@@ -1190,9 +1229,13 @@
         const text = cleanupOcrText(result.data.text);
         els.ocrText.value = text;
         const draft = text ? applyOcrDraft(text) : null;
+        const candidates = text ? extractScheduleCandidates(text) : [];
+        renderOcrCandidates(candidates);
         const garbled = isLikelyGarbled(text);
         els.ocrStatus.textContent = garbled
           ? "文字が小さくて崩れています。行事表を画面いっぱいに拡大して、もう一度スクショしてください。"
+          : candidates.length
+            ? "予定候補を作りました。追加したい予定を押すとフォームに入ります。"
           : draft?.changed
             ? "日付・予定名・持ち物の下書きを自動反映しました。確認して追加してください。"
             : text
@@ -1270,6 +1313,101 @@
 
       if (changed) render();
       return { changed };
+    }
+
+    function renderOcrCandidates(candidates) {
+      els.ocrCandidates.innerHTML = "";
+      els.ocrCandidates.classList.toggle("show", candidates.length > 0);
+      if (!candidates.length) return;
+
+      const title = document.createElement("p");
+      title.className = "ocr-candidates-title";
+      title.textContent = "読み取り候補";
+      els.ocrCandidates.appendChild(title);
+
+      candidates.slice(0, 8).forEach((candidate) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "candidate-btn";
+        button.innerHTML = `${escapeHtml(candidate.title)}<span>${candidate.month}/${candidate.day} ${candidate.weekday || ""}</span>`;
+        button.addEventListener("click", () => applyScheduleCandidate(candidate));
+        els.ocrCandidates.appendChild(button);
+      });
+    }
+
+    function applyScheduleCandidate(candidate) {
+      const date = makeDate(today.getFullYear(), candidate.month, candidate.day);
+      if (date) {
+        state.selectedDate = toKey(date);
+        state.visibleMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        state.view = "today";
+      }
+      els.category.value = inferCategory(candidate.title) || "school";
+      renderTemplateButtons();
+      els.title.value = candidate.title;
+      els.memo.value = [els.memo.value.trim(), `読み取り候補: ${candidate.raw}`].filter(Boolean).join("\n\n");
+      render();
+      showToast("候補をフォームに入れました");
+    }
+
+    function extractScheduleCandidates(text) {
+      const lines = cleanupOcrText(text).split("\n");
+      const candidates = [];
+      let currentMonth = null;
+
+      lines.forEach((sourceLine) => {
+        const line = normalizeOcrScheduleLine(sourceLine);
+        const explicitMonthMatch = line.match(/(?:^|\s)(1[0-2]|[1-9])\s*月/);
+        const monthColumnMatch = line.match(/^(1[0-2]|[1-9])$/);
+        const monthDayRowMatch = line.match(/^(1[0-2]|[1-9])\s+([0-3]?\d)\s*([日月火水木金土])\s+(.{2,})/);
+        if (explicitMonthMatch) currentMonth = Number(explicitMonthMatch[1]);
+        if (monthColumnMatch) currentMonth = Number(monthColumnMatch[1]);
+        if (monthDayRowMatch) {
+          currentMonth = Number(monthDayRowMatch[1]);
+          pushCandidate(candidates, currentMonth, Number(monthDayRowMatch[2]), monthDayRowMatch[3], cleanCandidateTitle(monthDayRowMatch[4]), sourceLine);
+        }
+
+        Array.from(line.matchAll(/(1[0-2]|[1-9])\s*[\/月]\s*([0-3]?\d)\s*(?:日)?\s*([日月火水木金土])?\s*([^0-9\/月]{2,})?/g))
+          .forEach((match) => {
+            pushCandidate(candidates, Number(match[1]), Number(match[2]), match[3] || "", cleanCandidateTitle(match[4] || sourceLine), sourceLine);
+          });
+
+        const tableMatch = line.match(/(?:^|\s)([0-3]?\d)\s*([日月火水木金土])\s+(.{2,})/);
+        if (tableMatch && currentMonth) {
+          pushCandidate(candidates, currentMonth, Number(tableMatch[1]), tableMatch[2], cleanCandidateTitle(tableMatch[3]), sourceLine);
+        }
+      });
+
+      return candidates.filter((candidate, index, array) => {
+        if (!makeDate(today.getFullYear(), candidate.month, candidate.day)) return false;
+        return array.findIndex((item) => item.month === candidate.month && item.day === candidate.day && item.title === candidate.title) === index;
+      });
+    }
+
+    function normalizeOcrScheduleLine(line) {
+      return normalizeText(line)
+        .replace(/[|｜]/g, " ")
+        .replace(/[()]/g, " ")
+        .replace(/([0-9])([日月火水木金土])/g, "$1 $2")
+        .replace(/([日月火水木金土])([^\s])/g, "$1 $2")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function cleanCandidateTitle(value) {
+      return String(value || "")
+        .replace(/[|｜]/g, " ")
+        .replace(/^[\s・●○■□◆◇\-—~〜、。.,]+/, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^日\s*/, "")
+        .slice(0, 32);
+    }
+
+    function pushCandidate(candidates, month, day, weekday, title, raw) {
+      if (!month || !day || day > 31 || !title || title.length < 2) return;
+      if (/令和|年度|予定|主な行事|関連行事|曜日|月日/.test(title)) return;
+      candidates.push({ month, day, weekday, title, raw });
     }
 
     function normalizeText(text) {
