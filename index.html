@@ -842,6 +842,13 @@
             </div>
 
             <label>
+              よくある行事から選ぶ
+              <select id="eventPresetInput">
+                <option value="">選択してください</option>
+              </select>
+            </label>
+
+            <label>
               行事・予定名
               <input id="titleInput" placeholder="例：遠足、参観日、提出締切" required />
             </label>
@@ -939,6 +946,22 @@
       work: ["手帳", "書類", "財布", "スマホ", "充電器", "エコバッグ"]
     };
 
+    const eventPresets = {
+      nursery: [
+        "遠足", "運動会", "発表会", "保育参観", "個人面談", "身体測定", "避難訓練", "お弁当の日",
+        "プールの日", "誕生日会", "集金", "持ち物提出", "写真撮影", "園外保育", "卒園式", "入園式"
+      ],
+      school: [
+        "参観日", "運動会", "遠足", "始業式", "終業式", "入学式", "卒業式", "PTA", "個人面談",
+        "宿泊学習", "修学旅行", "避難訓練", "プールの日", "弁当の日", "提出物締切", "身体測定",
+        "家庭訪問", "土曜授業", "出校日", "発表会"
+      ],
+      work: [
+        "仕事", "午後仕事", "午前仕事", "会議", "通院", "役所", "買い物", "美容室", "保育園迎え",
+        "学校迎え", "提出締切", "家の用事", "予定あり"
+      ]
+    };
+
     const els = {
       todayChip: document.querySelector("#todayChip"),
       showToday: document.querySelector("#showToday"),
@@ -962,6 +985,7 @@
       child: document.querySelector("#childInput"),
       childName: document.querySelector("#childNameInput"),
       addChildName: document.querySelector("#addChildName"),
+      eventPreset: document.querySelector("#eventPresetInput"),
       title: document.querySelector("#titleInput"),
       time: document.querySelector("#timeInput"),
       screenshot: document.querySelector("#screenshotInput"),
@@ -986,6 +1010,7 @@
 
     bindEvents();
     renderChildOptions();
+    renderEventPresets();
     renderTemplateButtons();
     render();
 
@@ -1028,7 +1053,14 @@
 
       els.category.addEventListener("change", () => {
         if (els.category.value === "work") els.child.value = "自分";
+        renderEventPresets();
         renderTemplateButtons();
+      });
+
+      els.eventPreset.addEventListener("change", () => {
+        if (!els.eventPreset.value) return;
+        els.title.value = els.eventPreset.value;
+        showToast("予定名に入れました");
       });
 
       els.addChildName.addEventListener("click", () => {
@@ -1149,6 +1181,7 @@
         renderOcrCandidates([]);
         els.ocrStatus.textContent = "スクショを選ぶと、日付・予定・持ち物の下書きを作れます。";
         renderChildOptions();
+        renderEventPresets();
         renderTemplateButtons();
         render();
         showToast("予定を追加しました");
@@ -1194,6 +1227,19 @@
         button.addEventListener("click", () => addCarryText(name));
         els.templateButtons.appendChild(button);
       });
+    }
+
+    function renderEventPresets() {
+      const current = els.eventPreset.value;
+      const presets = eventPresets[els.category.value] || [];
+      els.eventPreset.innerHTML = '<option value="">リストから選ぶ / 手入力もOK</option>';
+      presets.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        els.eventPreset.appendChild(option);
+      });
+      if (presets.includes(current)) els.eventPreset.value = current;
     }
 
     function addCarryText(name) {
