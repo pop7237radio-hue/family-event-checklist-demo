@@ -1,0 +1,1695 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f6f5ef" />
+  <title>家族の予定・持ち物チェック</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f5ef;
+      --surface: #fffefa;
+      --ink: #222622;
+      --muted: #65706b;
+      --line: #ddd8cc;
+      --green: #2f6b55;
+      --blue: #32678d;
+      --coral: #bd6654;
+      --gold: #a97823;
+      --soft-green: #edf6f1;
+      --soft-blue: #eef5fb;
+      --soft-coral: #fff0ed;
+      --shadow: 0 16px 34px rgba(42, 36, 27, .12);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "YuGothic", "Noto Sans JP", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
+    body { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+    button, input, select, textarea { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
+
+    .app {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(246, 245, 239, .94);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(221, 216, 204, .88);
+      padding: 14px 16px 12px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .date-chip {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--green);
+      font-weight: 900;
+      box-shadow: 0 8px 20px rgba(42, 36, 27, .07);
+    }
+
+    .quick {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .quick button {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 900;
+    }
+
+    .quick button.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+    }
+
+    main {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(330px, .95fr);
+      gap: 14px;
+      align-items: start;
+      flex: 1;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .section-head {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fffefa, #faf8f1);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .sub {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .tools {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn,
+    .primary-btn,
+    .ghost-btn,
+    .danger-btn {
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .icon-btn {
+      width: 42px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+
+    .primary-btn {
+      width: 100%;
+      border-color: var(--green);
+      background: var(--green);
+      color: #fff;
+    }
+
+    .ghost-btn {
+      padding: 0 12px;
+      color: var(--green);
+    }
+
+    .danger-btn {
+      padding: 0 10px;
+      color: var(--coral);
+      border-color: rgba(189, 102, 84, .34);
+      background: #fff8f6;
+    }
+
+    .calendar {
+      padding: 12px;
+    }
+
+    .weekdays,
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .weekdays {
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .day {
+      min-height: 76px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 7px;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 5px;
+    }
+
+    .day.selected {
+      outline: 3px solid rgba(47, 107, 85, .18);
+      border-color: var(--green);
+      background: var(--soft-green);
+    }
+
+    .day.today .num {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 14px;
+    }
+
+    .marks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      min-height: 18px;
+    }
+
+    .dot {
+      width: 17px;
+      height: 17px;
+      border-radius: 999px;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .dot.nursery { background: var(--coral); }
+    .dot.school { background: var(--blue); }
+    .dot.work { background: var(--green); }
+
+    .side {
+      display: grid;
+      gap: 14px;
+    }
+
+    .selected-date {
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .selected-date strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .today-summary {
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .category-summary {
+      padding: 0 12px 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .summary-box {
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 8px;
+      min-height: 58px;
+      background: #fff;
+    }
+
+    .summary-box b {
+      display: block;
+      font-size: 20px;
+      color: var(--green);
+      line-height: 1.1;
+    }
+
+    .summary-box span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .mini-summary {
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 54px;
+      color: #fff;
+    }
+
+    .mini-summary.nursery { background: var(--coral); }
+    .mini-summary.school { background: var(--blue); }
+    .mini-summary.work { background: var(--green); }
+
+    .mini-summary b {
+      display: block;
+      font-size: 19px;
+      line-height: 1.1;
+    }
+
+    .mini-summary span {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 900;
+      opacity: .95;
+    }
+
+    .events {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      color: var(--muted);
+      line-height: 1.6;
+      background: #fffaf2;
+    }
+
+    .event-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .event-main {
+      padding: 11px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 7px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .tag.nursery { background: var(--coral); }
+    .tag.school { background: var(--blue); }
+    .tag.work { background: var(--green); }
+    .tag.child { background: #6f6256; }
+
+    .event-title {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .event-note {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .items {
+      border-top: 1px solid var(--line);
+      background: #fbfaf5;
+      padding: 10px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .check {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      padding: 8px 10px;
+    }
+
+    .check input {
+      width: 22px;
+      height: 22px;
+      accent-color: var(--green);
+    }
+
+    .check span {
+      overflow-wrap: anywhere;
+      font-weight: 800;
+    }
+
+    .check.done span {
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+
+    .source-shot {
+      border-top: 1px solid var(--line);
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .source-shot img {
+      width: 100%;
+      max-height: 260px;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .source-shot span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    form {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--green);
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      padding: 11px 12px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 78px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(47, 107, 85, .14);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .template-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfaf5;
+      display: grid;
+      gap: 9px;
+    }
+
+    .template-title {
+      margin: 0;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .template-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .template-btn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .template-btn:active {
+      background: var(--soft-green);
+    }
+
+    .add-item-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .add-item-row button {
+      min-height: 43px;
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      background: var(--green);
+      color: #fff;
+      padding: 0 12px;
+      font-weight: 900;
+    }
+
+    .name-box {
+      grid-column: 1 / -1;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .name-box p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .file-preview {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px;
+      display: none;
+      gap: 8px;
+    }
+
+    .file-preview.show {
+      display: grid;
+    }
+
+    .file-preview img {
+      width: 100%;
+      max-height: 220px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .file-preview span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .ocr-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft-blue);
+      padding: 10px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .ocr-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .ocr-actions button,
+    .ocr-read-btn {
+      min-height: 42px;
+      border: 1px solid var(--blue);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--blue);
+      padding: 0 10px;
+      font-weight: 900;
+    }
+
+    .ocr-read-btn {
+      width: 100%;
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .ocr-read-btn:disabled {
+      opacity: .58;
+      cursor: wait;
+    }
+
+    .ocr-status {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .hint {
+      margin: -3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      z-index: 30;
+      transform: translateX(-50%) translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .18s ease;
+      max-width: min(92vw, 420px);
+      border-radius: 8px;
+      background: #1f2a24;
+      color: #fff;
+      padding: 12px 14px;
+      font-weight: 900;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, .22);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 860px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 12px;
+      }
+
+      h1 { font-size: 21px; }
+      .day { min-height: 60px; padding: 5px; }
+      .num { width: 24px; height: 24px; font-size: 13px; }
+      .dot { width: 15px; height: 15px; font-size: 9px; }
+    }
+
+    @media (max-width: 440px) {
+      header { padding-inline: 12px; }
+      .date-chip { font-size: 12px; padding: 7px 8px; }
+      .calendar { padding: 8px; }
+      .weekdays, .days { gap: 4px; }
+      .day { min-height: 56px; border-radius: 7px; }
+      .today-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .category-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .two-col { grid-template-columns: 1fr; }
+      .event-main { grid-template-columns: 1fr; }
+      .danger-btn { width: 100%; }
+      .add-item-row { grid-template-columns: 1fr; }
+      .add-item-row button { width: 100%; }
+      .ocr-actions { grid-template-columns: 1fr; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="topbar">
+        <h1>家族の予定・持ち物チェック</h1>
+        <div class="date-chip" id="todayChip"></div>
+      </div>
+      <div class="quick" aria-label="表示切替">
+        <button type="button" id="showToday">今日</button>
+        <button type="button" id="showWeek">今週</button>
+        <button type="button" id="showMonth">月</button>
+      </div>
+    </header>
+
+    <main>
+      <section aria-labelledby="calendarTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="calendarTitle">カレンダー</h2>
+            <span class="sub">保育園・小学校・自分の予定を朝まとめて確認</span>
+          </div>
+          <div class="tools">
+            <button class="icon-btn" type="button" id="prevMonth" aria-label="前の月">‹</button>
+            <button class="icon-btn" type="button" id="nextMonth" aria-label="次の月">›</button>
+          </div>
+        </div>
+        <div class="calendar">
+          <div class="weekdays" aria-hidden="true">
+            <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+          </div>
+          <div class="days" id="calendarDays"></div>
+        </div>
+      </section>
+
+      <div class="side">
+        <section aria-labelledby="listTitle">
+          <div class="selected-date">
+            <div>
+              <h2 id="listTitle">今日見るもの</h2>
+              <strong id="selectedDateLabel"></strong>
+            </div>
+            <button class="ghost-btn" type="button" id="jumpToday">今日</button>
+          </div>
+          <div class="today-summary" aria-label="選択日の状況">
+            <div class="summary-box"><b id="eventCount">0</b><span>予定</span></div>
+            <div class="summary-box"><b id="itemCount">0</b><span>持ち物</span></div>
+            <div class="summary-box"><b id="doneCount">0</b><span>完了</span></div>
+          </div>
+          <div class="category-summary" aria-label="分類別の予定数">
+            <div class="mini-summary nursery"><b id="nurseryCount">0</b><span>保育園</span></div>
+            <div class="mini-summary school"><b id="schoolCount">0</b><span>小学校</span></div>
+            <div class="mini-summary work"><b id="workCount">0</b><span>自分</span></div>
+          </div>
+          <div class="events" id="eventList"></div>
+        </section>
+
+        <section aria-labelledby="formTitle">
+          <div class="section-head">
+            <div>
+              <h2 id="formTitle">家族予定を追加</h2>
+              <span class="sub">持ち物は改行で複数入力できます</span>
+            </div>
+          </div>
+          <form id="eventForm">
+            <div class="two-col">
+              <label>
+                種類
+                <select id="categoryInput">
+                  <option value="nursery">保育園</option>
+                  <option value="school">小学校</option>
+                  <option value="work">自分（ママ）</option>
+                </select>
+              </label>
+              <label>
+                誰の予定？
+                <select id="childInput">
+                  <option>家族全員</option>
+                  <option>自分</option>
+                </select>
+              </label>
+              <div class="name-box">
+                <div class="add-item-row">
+                  <label>
+                    子どもの名前を追加
+                    <input id="childNameInput" placeholder="例：はる、みお" />
+                  </label>
+                  <button type="button" id="addChildName">追加</button>
+                </div>
+                <p>一度追加すると「誰の予定？」から選べます。ニックネームで大丈夫です。</p>
+              </div>
+            </div>
+
+            <label>
+              行事・予定名
+              <input id="titleInput" placeholder="例：遠足、参観日、提出締切" required />
+            </label>
+
+            <label>
+              時間
+              <input id="timeInput" placeholder="例：8:30、午前、帰りまで" />
+            </label>
+
+            <label>
+              配布資料のスクショ
+              <input id="screenshotInput" type="file" accept="image/*" />
+            </label>
+            <div class="file-preview" id="filePreview" aria-live="polite">
+              <img id="previewImage" alt="添付した配布資料のプレビュー" />
+              <span id="previewText"></span>
+            </div>
+            <p class="hint">プリントや連絡帳アプリのスクショを添付して、文字を読み取れます。</p>
+
+            <div class="ocr-box">
+              <button class="ocr-read-btn" type="button" id="readScreenshotText">スクショから文字を読み取る</button>
+              <div class="ocr-status" id="ocrStatus">スクショを選ぶと、日付・予定・持ち物の下書きを作れます。</div>
+              <label>
+                読み取った文字
+                <textarea id="ocrTextInput" placeholder="ここに読み取り結果が入ります"></textarea>
+              </label>
+              <div class="ocr-actions">
+                <button type="button" id="useOcrAsTitle">予定名に入れる</button>
+                <button type="button" id="addOcrToMemo">メモに追加</button>
+              </div>
+            </div>
+
+            <div class="template-box">
+              <p class="template-title">よく使う持ち物</p>
+              <div class="template-buttons" id="templateButtons"></div>
+              <div class="add-item-row">
+                <label>
+                  その他
+                  <input id="customItemInput" placeholder="例：牛乳パック、雑巾、集金袋" />
+                </label>
+                <button type="button" id="addCustomItem">追加</button>
+              </div>
+            </div>
+
+            <label>
+              持ち物
+              <textarea id="itemsInput" placeholder="水筒&#10;帽子&#10;連絡帳"></textarea>
+            </label>
+            <p class="hint">持ち物がない仕事予定や提出日も登録できます。</p>
+
+            <label>
+              メモ
+              <textarea id="memoInput" placeholder="集合場所、提出先、注意点など"></textarea>
+            </label>
+
+            <button class="primary-btn" type="submit">追加する</button>
+          </form>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = "familyEventChecklistDemo.v1";
+    const CHILDREN_STORAGE_KEY = "familyEventChecklistDemo.children.v1";
+    const today = stripTime(new Date());
+    const state = {
+      selectedDate: toKey(today),
+      visibleMonth: new Date(today.getFullYear(), today.getMonth(), 1),
+      view: "today",
+      events: loadEvents(),
+      children: loadChildren()
+    };
+
+    const categoryLabels = {
+      nursery: "保育園",
+      school: "小学校",
+      work: "自分（ママ）"
+    };
+
+    const categoryShort = {
+      nursery: "保",
+      school: "小",
+      work: "マ"
+    };
+
+    const carryTemplates = {
+      nursery: ["連絡帳", "水筒", "帽子", "着替え", "タオル", "お昼寝セット", "ビニール袋", "上履き"],
+      school: ["連絡帳", "水筒", "給食袋", "体操服", "上履き", "宿題", "筆箱", "ハンカチ", "ティッシュ", "図工材料"],
+      work: ["手帳", "書類", "財布", "スマホ", "充電器", "エコバッグ"]
+    };
+
+    const els = {
+      todayChip: document.querySelector("#todayChip"),
+      showToday: document.querySelector("#showToday"),
+      showWeek: document.querySelector("#showWeek"),
+      showMonth: document.querySelector("#showMonth"),
+      calendarTitle: document.querySelector("#calendarTitle"),
+      calendarDays: document.querySelector("#calendarDays"),
+      prevMonth: document.querySelector("#prevMonth"),
+      nextMonth: document.querySelector("#nextMonth"),
+      selectedDateLabel: document.querySelector("#selectedDateLabel"),
+      jumpToday: document.querySelector("#jumpToday"),
+      eventCount: document.querySelector("#eventCount"),
+      itemCount: document.querySelector("#itemCount"),
+      doneCount: document.querySelector("#doneCount"),
+      nurseryCount: document.querySelector("#nurseryCount"),
+      schoolCount: document.querySelector("#schoolCount"),
+      workCount: document.querySelector("#workCount"),
+      eventList: document.querySelector("#eventList"),
+      form: document.querySelector("#eventForm"),
+      category: document.querySelector("#categoryInput"),
+      child: document.querySelector("#childInput"),
+      childName: document.querySelector("#childNameInput"),
+      addChildName: document.querySelector("#addChildName"),
+      title: document.querySelector("#titleInput"),
+      time: document.querySelector("#timeInput"),
+      screenshot: document.querySelector("#screenshotInput"),
+      filePreview: document.querySelector("#filePreview"),
+      previewImage: document.querySelector("#previewImage"),
+      previewText: document.querySelector("#previewText"),
+      readScreenshotText: document.querySelector("#readScreenshotText"),
+      ocrStatus: document.querySelector("#ocrStatus"),
+      ocrText: document.querySelector("#ocrTextInput"),
+      useOcrAsTitle: document.querySelector("#useOcrAsTitle"),
+      addOcrToMemo: document.querySelector("#addOcrToMemo"),
+      templateButtons: document.querySelector("#templateButtons"),
+      customItem: document.querySelector("#customItemInput"),
+      addCustomItem: document.querySelector("#addCustomItem"),
+      items: document.querySelector("#itemsInput"),
+      memo: document.querySelector("#memoInput"),
+      toast: document.querySelector("#toast")
+    };
+
+    let selectedSourceImage = null;
+
+    bindEvents();
+    renderChildOptions();
+    renderTemplateButtons();
+    render();
+
+    function bindEvents() {
+      els.prevMonth.addEventListener("click", () => {
+        state.visibleMonth = new Date(state.visibleMonth.getFullYear(), state.visibleMonth.getMonth() - 1, 1);
+        state.view = "month";
+        render();
+      });
+
+      els.nextMonth.addEventListener("click", () => {
+        state.visibleMonth = new Date(state.visibleMonth.getFullYear(), state.visibleMonth.getMonth() + 1, 1);
+        state.view = "month";
+        render();
+      });
+
+      els.jumpToday.addEventListener("click", () => {
+        state.selectedDate = toKey(today);
+        state.visibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        state.view = "today";
+        render();
+      });
+
+      els.showToday.addEventListener("click", () => {
+        state.selectedDate = toKey(today);
+        state.visibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        state.view = "today";
+        render();
+      });
+
+      els.showWeek.addEventListener("click", () => {
+        state.view = "week";
+        render();
+      });
+
+      els.showMonth.addEventListener("click", () => {
+        state.view = "month";
+        render();
+      });
+
+      els.category.addEventListener("change", renderTemplateButtons);
+
+      els.addChildName.addEventListener("click", () => {
+        const name = els.childName.value.trim();
+        if (!name) {
+          showToast("名前を入力してください");
+          els.childName.focus();
+          return;
+        }
+        addChildName(name);
+      });
+
+      els.childName.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        els.addChildName.click();
+      });
+
+      els.addCustomItem.addEventListener("click", () => {
+        const value = els.customItem.value.trim();
+        if (!value) {
+          showToast("追加する持ち物を入力してください");
+          els.customItem.focus();
+          return;
+        }
+        addCarryText(value);
+        els.customItem.value = "";
+      });
+
+      els.customItem.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        els.addCustomItem.click();
+      });
+
+      els.screenshot.addEventListener("change", async () => {
+        const file = els.screenshot.files?.[0];
+        selectedSourceImage = null;
+        els.filePreview.classList.remove("show");
+        els.ocrText.value = "";
+        els.ocrStatus.textContent = "スクショを選ぶと、日付・予定・持ち物の下書きを作れます。";
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+          showToast("画像ファイルを選んでください");
+          els.screenshot.value = "";
+          return;
+        }
+        try {
+          selectedSourceImage = await resizeImage(file);
+          els.previewImage.src = selectedSourceImage.dataUrl;
+          els.previewText.textContent = `${file.name} を添付しました`;
+          els.ocrStatus.textContent = "スクショを読み取れます。読んだ内容はフォームへ自動反映します。";
+          els.filePreview.classList.add("show");
+        } catch (error) {
+          console.warn(error);
+          showToast("画像を読み込めませんでした");
+          els.screenshot.value = "";
+        }
+      });
+
+      els.readScreenshotText.addEventListener("click", readScreenshotText);
+
+      els.useOcrAsTitle.addEventListener("click", () => {
+        const firstLine = getOcrTextLines()[0];
+        if (!firstLine) {
+          showToast("読み取った文字がありません");
+          return;
+        }
+        els.title.value = firstLine.slice(0, 40);
+        showToast("予定名に入れました");
+      });
+
+      els.addOcrToMemo.addEventListener("click", () => {
+        const text = els.ocrText.value.trim();
+        if (!text) {
+          showToast("読み取った文字がありません");
+          return;
+        }
+        els.memo.value = [els.memo.value.trim(), text].filter(Boolean).join("\n\n");
+        showToast("メモに追加しました");
+      });
+
+      els.form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const title = els.title.value.trim();
+        if (!title) {
+          showToast("予定名を入力してください");
+          els.title.focus();
+          return;
+        }
+
+        state.events.push({
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          date: state.selectedDate,
+          category: els.category.value,
+          child: els.child.value,
+          title,
+          time: els.time.value.trim(),
+          items: els.items.value.split("\n").map((item) => item.trim()).filter(Boolean).map((name) => ({
+            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            name,
+            done: false
+          })),
+          memo: els.memo.value.trim(),
+          sourceImage: selectedSourceImage,
+          createdAt: new Date().toISOString()
+        });
+
+        saveEvents();
+        els.form.reset();
+        selectedSourceImage = null;
+        els.filePreview.classList.remove("show");
+        els.previewImage.removeAttribute("src");
+        els.previewText.textContent = "";
+        els.ocrText.value = "";
+        els.ocrStatus.textContent = "スクショを選ぶと、日付・予定・持ち物の下書きを作れます。";
+        renderChildOptions();
+        renderTemplateButtons();
+        render();
+        showToast("予定を追加しました");
+      });
+    }
+
+    function renderChildOptions() {
+      const current = els.child.value;
+      const options = [...state.children, "家族全員", "自分"];
+      els.child.innerHTML = "";
+      options.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        els.child.appendChild(option);
+      });
+      if (options.includes(current)) els.child.value = current;
+    }
+
+    function addChildName(name) {
+      if (state.children.includes(name)) {
+        showToast("すでに登録されています");
+        els.child.value = name;
+        return;
+      }
+      state.children.push(name);
+      saveChildren();
+      renderChildOptions();
+      els.child.value = name;
+      els.childName.value = "";
+      showToast(`${name} を追加しました`);
+    }
+
+    function renderTemplateButtons() {
+      const templates = carryTemplates[els.category.value] || [];
+      els.templateButtons.innerHTML = "";
+      templates.forEach((name) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "template-btn";
+        button.textContent = name;
+        button.addEventListener("click", () => addCarryText(name));
+        els.templateButtons.appendChild(button);
+      });
+    }
+
+    function addCarryText(name) {
+      const currentItems = els.items.value.split("\n").map((item) => item.trim()).filter(Boolean);
+      if (currentItems.includes(name)) {
+        showToast("すでに入っています");
+        return;
+      }
+      currentItems.push(name);
+      els.items.value = currentItems.join("\n");
+      showToast(`${name} を追加しました`);
+    }
+
+    async function readScreenshotText() {
+      if (!selectedSourceImage?.dataUrl) {
+        showToast("先にスクショを選んでください");
+        return;
+      }
+      if (!window.Tesseract) {
+        showToast("読み取り機能を読み込み中です。少し待ってください");
+        return;
+      }
+
+      els.readScreenshotText.disabled = true;
+      els.ocrStatus.textContent = "画像を読み取りやすく補正しています...";
+      try {
+        const ocrImage = await prepareOcrImage(selectedSourceImage.ocrDataUrl || selectedSourceImage.dataUrl);
+        const worker = await Tesseract.createWorker("jpn+eng", 1, {
+          logger: (message) => {
+            if (message.status !== "recognizing text") return;
+            const pct = Math.round((message.progress || 0) * 100);
+            els.ocrStatus.textContent = `文字を読み取っています... ${pct}%`;
+          }
+        });
+        await worker.setParameters({
+          preserve_interword_spaces: "1"
+        });
+        const result = await worker.recognize(ocrImage);
+        await worker.terminate();
+        const text = cleanupOcrText(result.data.text);
+        els.ocrText.value = text;
+        const draft = text ? applyOcrDraft(text) : null;
+        const garbled = isLikelyGarbled(text);
+        els.ocrStatus.textContent = garbled
+          ? "文字が小さくて崩れています。行事表を画面いっぱいに拡大して、もう一度スクショしてください。"
+          : draft?.changed
+            ? "日付・予定名・持ち物の下書きを自動反映しました。確認して追加してください。"
+            : text
+              ? "読み取りました。日付が取れない時は、日付だけ選んで追加してください。"
+              : "文字を読み取れませんでした。スクショを拡大して撮ると改善します。";
+        showToast(text ? "読み取り完了" : "読み取り結果が空でした");
+      } catch (error) {
+        console.warn(error);
+        els.ocrStatus.textContent = "読み取りに失敗しました。通信状態や画像の明るさを確認してください。";
+        showToast("読み取りに失敗しました");
+      } finally {
+        els.readScreenshotText.disabled = false;
+      }
+    }
+
+    function cleanupOcrText(text) {
+      return String(text || "")
+        .split("\n")
+        .map((line) => line.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    function isLikelyGarbled(text) {
+      const value = String(text || "").replace(/\s+/g, "");
+      if (value.length < 12) return false;
+      const japanese = (value.match(/[\u3040-\u30ff\u3400-\u9fff]/g) || []).length;
+      const latin = (value.match(/[A-Za-z]/g) || []).length;
+      return latin > japanese * 2 && japanese < 8;
+    }
+
+    function getOcrTextLines() {
+      return els.ocrText.value.split("\n").map((line) => line.trim()).filter(Boolean);
+    }
+
+    function applyOcrDraft(text) {
+      const normalized = normalizeText(text);
+      const lines = getOcrTextLines();
+      let changed = false;
+      const foundDate = extractDateFromText(normalized);
+      if (foundDate) {
+        state.selectedDate = toKey(foundDate);
+        state.visibleMonth = new Date(foundDate.getFullYear(), foundDate.getMonth(), 1);
+        state.view = "today";
+        changed = true;
+      }
+
+      const inferredCategory = inferCategory(normalized);
+      if (inferredCategory && els.category.value !== inferredCategory) {
+        els.category.value = inferredCategory;
+        renderTemplateButtons();
+        changed = true;
+      }
+
+      const title = extractTitle(lines);
+      if (title) {
+        els.title.value = title;
+        changed = true;
+      }
+
+      const foundItems = extractCarryItems(normalized);
+      if (foundItems.length) {
+        const currentItems = els.items.value.split("\n").map((item) => item.trim()).filter(Boolean);
+        foundItems.forEach((name) => {
+          if (!currentItems.includes(name)) currentItems.push(name);
+        });
+        els.items.value = currentItems.join("\n");
+        changed = true;
+      }
+
+      if (text.trim()) {
+        els.memo.value = [els.memo.value.trim(), `読み取りメモ:\n${text.trim()}`].filter(Boolean).join("\n\n");
+        changed = true;
+      }
+
+      if (changed) render();
+      return { changed };
+    }
+
+    function normalizeText(text) {
+      return String(text || "")
+        .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+        .replace(/[／．。]/g, "/")
+        .replace(/[（）]/g, "")
+        .replace(/\s+/g, " ");
+    }
+
+    function extractDateFromText(text) {
+      const currentYear = today.getFullYear();
+      const patterns = [
+        /(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/,
+        /(\d{1,2})\s*月\s*(\d{1,2})\s*日/,
+        /(\d{1,2})\s*\/\s*(\d{1,2})/
+      ];
+
+      let match = text.match(patterns[0]);
+      if (match) return makeDate(Number(match[1]), Number(match[2]), Number(match[3]));
+
+      match = text.match(patterns[1]);
+      if (match) return makeDate(currentYear, Number(match[1]), Number(match[2]));
+
+      match = text.match(patterns[2]);
+      if (match) return makeDate(currentYear, Number(match[1]), Number(match[2]));
+
+      return null;
+    }
+
+    function makeDate(year, month, day) {
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+      return stripTime(date);
+    }
+
+    function inferCategory(text) {
+      if (/保育|園|幼稚園/.test(text)) return "nursery";
+      if (/小学校|学校|学年|学級|授業|宿題|給食/.test(text)) return "school";
+      if (/勤務|仕事|会議|出勤|美容室|病院|買い物|役所|自分|ママ/.test(text)) return "work";
+      return "";
+    }
+
+    function extractTitle(lines) {
+      const skipWords = /持ち物|準備|お願い|お知らせ|連絡|日時|場所|保護者|締切|提出|令和|202\d|\d+月\d+日|\d+\/\d+/;
+      const candidates = lines
+        .map((line) => line.replace(/^[・●○■□◆◇\-\s]+/, "").trim())
+        .filter((line) => line.length >= 3 && line.length <= 28)
+        .filter((line) => !skipWords.test(normalizeText(line)));
+      const eventWord = candidates.find((line) => /遠足|参観|運動会|発表会|懇談|面談|健診|検診|集金|プール|避難訓練|給食|弁当|提出/.test(line));
+      return eventWord || candidates[0] || "";
+    }
+
+    function extractCarryItems(text) {
+      const allTemplates = Array.from(new Set(Object.values(carryTemplates).flat()));
+      const extraWords = ["弁当", "お弁当", "レジャーシート", "雨具", "カッパ", "軍手", "雑巾", "牛乳パック", "新聞紙", "絵の具", "クレパス", "色鉛筆", "集金袋", "印鑑", "体温カード", "プールカード"];
+      return [...allTemplates, ...extraWords].filter((name) => text.includes(name));
+    }
+
+    function render() {
+      els.todayChip.textContent = formatShort(today);
+      renderQuickButtons();
+      renderCalendar();
+      renderEvents();
+    }
+
+    function renderQuickButtons() {
+      els.showToday.classList.toggle("active", state.view === "today");
+      els.showWeek.classList.toggle("active", state.view === "week");
+      els.showMonth.classList.toggle("active", state.view === "month");
+    }
+
+    function renderCalendar() {
+      const year = state.visibleMonth.getFullYear();
+      const month = state.visibleMonth.getMonth();
+      const first = new Date(year, month, 1);
+      const start = addDays(first, -first.getDay());
+      els.calendarTitle.textContent = `${year}年${month + 1}月`;
+      els.calendarDays.innerHTML = "";
+
+      for (let i = 0; i < 42; i += 1) {
+        const date = addDays(start, i);
+        const key = toKey(date);
+        const dayEvents = state.events.filter((item) => item.date === key);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "day";
+        button.setAttribute("aria-label", `${formatLong(date)} ${dayEvents.length}件`);
+        if (key === state.selectedDate) button.classList.add("selected");
+        if (key === toKey(today)) button.classList.add("today");
+        if (date.getMonth() !== month) button.style.visibility = "hidden";
+        const dots = dayEvents.slice(0, 4).map((item) => `<span class="dot ${item.category}">${categoryShort[item.category]}</span>`).join("");
+        button.innerHTML = `<span class="num">${date.getDate()}</span><span class="marks">${dots}</span>`;
+        button.addEventListener("click", () => {
+          state.selectedDate = key;
+          state.view = "today";
+          render();
+        });
+        els.calendarDays.appendChild(button);
+      }
+    }
+
+    function renderEvents() {
+      const selectedDate = fromKey(state.selectedDate);
+      const items = getVisibleEvents();
+      const summaryItems = state.view === "today" ? state.events.filter((item) => item.date === state.selectedDate) : items;
+      const allCarryItems = summaryItems.flatMap((event) => event.items);
+      const doneCarryItems = allCarryItems.filter((item) => item.done);
+
+      els.selectedDateLabel.textContent = getViewLabel(selectedDate);
+      els.eventCount.textContent = summaryItems.length;
+      els.itemCount.textContent = allCarryItems.length;
+      els.doneCount.textContent = doneCarryItems.length;
+      els.nurseryCount.textContent = summaryItems.filter((item) => item.category === "nursery").length;
+      els.schoolCount.textContent = summaryItems.filter((item) => item.category === "school").length;
+      els.workCount.textContent = summaryItems.filter((item) => item.category === "work").length;
+      els.eventList.innerHTML = "";
+
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = state.view === "week" ? "この週の予定はまだありません。" : "この日の予定はまだありません。下のフォームから追加できます。";
+        els.eventList.appendChild(empty);
+        return;
+      }
+
+      items.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "event-card";
+        card.innerHTML = `
+          <div class="event-main">
+            <div>
+              <div class="tag-row">
+                <span class="tag ${item.category}">${categoryLabels[item.category]}</span>
+                <span class="tag child">${escapeHtml(item.child)}</span>
+              </div>
+              <h3 class="event-title">${escapeHtml(item.title)}</h3>
+              <p class="event-note">${escapeHtml([item.time, item.memo].filter(Boolean).join(" / ")) || "メモなし"}</p>
+            </div>
+            <button class="danger-btn" type="button">取消</button>
+          </div>
+          ${item.sourceImage?.dataUrl ? renderSourceImage(item.sourceImage) : ""}
+          ${item.items.length ? `<div class="items">${item.items.map((carry) => renderCarryItem(item.id, carry)).join("")}</div>` : ""}
+        `;
+
+        card.querySelector(".danger-btn").addEventListener("click", () => {
+          if (!window.confirm(`${item.title} を取消しますか？`)) return;
+          state.events = state.events.filter((event) => event.id !== item.id);
+          saveEvents();
+          render();
+          showToast("予定を取消しました");
+        });
+
+        card.querySelectorAll("[data-carry-id]").forEach((checkbox) => {
+          checkbox.addEventListener("change", () => {
+            const eventId = checkbox.dataset.eventId;
+            const carryId = checkbox.dataset.carryId;
+            const event = state.events.find((candidate) => candidate.id === eventId);
+            const carry = event?.items.find((candidate) => candidate.id === carryId);
+            if (!carry) return;
+            carry.done = checkbox.checked;
+            saveEvents();
+            render();
+          });
+        });
+
+        els.eventList.appendChild(card);
+      });
+    }
+
+    function renderCarryItem(eventId, item) {
+      return `
+        <label class="check ${item.done ? "done" : ""}">
+          <input type="checkbox" data-event-id="${eventId}" data-carry-id="${item.id}" ${item.done ? "checked" : ""} />
+          <span>${escapeHtml(item.name)}</span>
+        </label>
+      `;
+    }
+
+    function renderSourceImage(sourceImage) {
+      return `
+        <div class="source-shot">
+          <span>配布資料のスクショ</span>
+          <img src="${sourceImage.dataUrl}" alt="${escapeHtml(sourceImage.name || "配布資料のスクショ")}" />
+        </div>
+      `;
+    }
+
+    function getViewLabel(selectedDate) {
+      if (state.view === "week") return `${formatLong(selectedDate)} から7日間`;
+      if (state.view === "month") return `${state.visibleMonth.getFullYear()}年${state.visibleMonth.getMonth() + 1}月`;
+      return formatLong(selectedDate);
+    }
+
+    function getVisibleEvents() {
+      if (state.view === "week") {
+        const start = fromKey(state.selectedDate);
+        const end = addDays(start, 6);
+        return state.events
+          .filter((item) => {
+            const date = fromKey(item.date);
+            return date >= start && date <= end;
+          })
+          .sort(sortEvents);
+      }
+
+      if (state.view === "month") {
+        const year = state.visibleMonth.getFullYear();
+        const month = state.visibleMonth.getMonth();
+        return state.events
+          .filter((item) => {
+            const date = fromKey(item.date);
+            return date.getFullYear() === year && date.getMonth() === month;
+          })
+          .sort(sortEvents);
+      }
+
+      return state.events.filter((item) => item.date === state.selectedDate).sort(sortEvents);
+    }
+
+    function sortEvents(a, b) {
+      return `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
+    }
+
+    function loadEvents() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (error) {
+          console.warn("予定データを読み込めませんでした", error);
+        }
+      }
+
+      return [
+        {
+          id: "sample-1",
+          date: toKey(today),
+          category: "nursery",
+          child: "下の子",
+          title: "プールの日",
+          time: "朝",
+          memo: "体温チェックを忘れない",
+          items: [
+            { id: "sample-1-a", name: "水着", done: false },
+            { id: "sample-1-b", name: "タオル", done: false },
+            { id: "sample-1-c", name: "プールカード", done: true }
+          ],
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "sample-2",
+          date: toKey(today),
+          category: "school",
+          child: "上の子",
+          title: "図工の材料提出",
+          time: "登校時",
+          memo: "紙袋にまとめる",
+          items: [
+            { id: "sample-2-a", name: "空き箱", done: false },
+            { id: "sample-2-b", name: "のり", done: false }
+          ],
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "sample-3",
+          date: toKey(addDays(today, 2)),
+          category: "work",
+          child: "自分",
+          title: "午前だけ仕事",
+          time: "9:00-12:00",
+          memo: "午後は迎え対応",
+          items: [],
+          createdAt: new Date().toISOString()
+        }
+      ];
+    }
+
+    function loadChildren() {
+      const raw = localStorage.getItem(CHILDREN_STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed.map((name) => String(name).trim()).filter(Boolean);
+        } catch (error) {
+          console.warn("名前データを読み込めませんでした", error);
+        }
+      }
+      return ["上の子", "下の子"];
+    }
+
+    function saveEvents() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.events));
+      } catch (error) {
+        console.warn(error);
+        showToast("保存容量が足りません。古いスクショを減らしてください");
+      }
+    }
+
+    function saveChildren() {
+      localStorage.setItem(CHILDREN_STORAGE_KEY, JSON.stringify(state.children));
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 1800);
+    }
+
+    function stripTime(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function addDays(date, days) {
+      const next = new Date(date);
+      next.setDate(next.getDate() + days);
+      return stripTime(next);
+    }
+
+    function resizeImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const image = new Image();
+          image.onload = () => {
+            const preview = renderImageToDataUrl(image, 1000, "image/jpeg", .82);
+            const ocr = renderImageToDataUrl(image, 2400, "image/png", 1);
+            resolve({
+              name: file.name,
+              dataUrl: preview,
+              ocrDataUrl: ocr
+            });
+          };
+          image.onerror = reject;
+          image.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderImageToDataUrl(image, maxWidth, type, quality) {
+      const scale = Math.min(1, maxWidth / image.width);
+      const width = Math.round(image.width * scale);
+      const height = Math.round(image.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0, width, height);
+      return canvas.toDataURL(type, quality);
+    }
+
+    function prepareOcrImage(dataUrl) {
+      return loadImage(dataUrl).then((image) => {
+        const scale = Math.min(3, Math.max(1.8, 2600 / image.width));
+        const width = Math.round(image.width * scale);
+        const height = Math.round(image.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(image, 0, 0, width, height);
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114;
+          const boosted = gray < 170 ? Math.max(0, gray - 34) : Math.min(255, gray + 28);
+          data[i] = boosted;
+          data[i + 1] = boosted;
+          data[i + 2] = boosted;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        return canvas.toDataURL("image/png");
+      });
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = src;
+      });
+    }
+
+    function toKey(date) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function fromKey(key) {
+      const [year, month, day] = key.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function formatShort(date) {
+      return `${date.getMonth() + 1}/${date.getDate()} ${["日", "月", "火", "水", "木", "金", "土"][date.getDay()]}`;
+    }
+
+    function formatLong(date) {
+      return `${date.getMonth() + 1}月${date.getDate()}日（${["日", "月", "火", "水", "木", "金", "土"][date.getDay()]}）`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
