@@ -533,6 +533,23 @@
       font-weight: 900;
     }
 
+    .name-box {
+      grid-column: 1 / -1;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .name-box p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     .file-preview {
       border: 1px dashed var(--line);
       border-radius: 8px;
@@ -734,12 +751,20 @@
               <label>
                 誰の予定？
                 <select id="childInput">
-                  <option>上の子</option>
-                  <option>下の子</option>
                   <option>家族全員</option>
                   <option>自分</option>
                 </select>
               </label>
+              <div class="name-box">
+                <div class="add-item-row">
+                  <label>
+                    子どもの名前を追加
+                    <input id="childNameInput" placeholder="例：はる、みお" />
+                  </label>
+                  <button type="button" id="addChildName">追加</button>
+                </div>
+                <p>一度追加すると「誰の予定？」から選べます。ニックネームで大丈夫です。</p>
+              </div>
             </div>
 
             <label>
@@ -809,12 +834,14 @@
 
   <script>
     const STORAGE_KEY = "familyEventChecklistDemo.v1";
+    const CHILDREN_STORAGE_KEY = "familyEventChecklistDemo.children.v1";
     const today = stripTime(new Date());
     const state = {
       selectedDate: toKey(today),
       visibleMonth: new Date(today.getFullYear(), today.getMonth(), 1),
       view: "today",
-      events: loadEvents()
+      events: loadEvents(),
+      children: loadChildren()
     };
 
     const categoryLabels = {
@@ -853,6 +880,8 @@
       form: document.querySelector("#eventForm"),
       category: document.querySelector("#categoryInput"),
       child: document.querySelector("#childInput"),
+      childName: document.querySelector("#childNameInput"),
+      addChildName: document.querySelector("#addChildName"),
       title: document.querySelector("#titleInput"),
       time: document.querySelector("#timeInput"),
       screenshot: document.querySelector("#screenshotInput"),
@@ -875,6 +904,7 @@
     let selectedSourceImage = null;
 
     bindEvents();
+    renderChildOptions();
     renderTemplateButtons();
     render();
 
@@ -916,6 +946,22 @@
       });
 
       els.category.addEventListener("change", renderTemplateButtons);
+
+      els.addChildName.addEventListener("click", () => {
+        const name = els.childName.value.trim();
+        if (!name) {
+          showToast("名前を入力してください");
+          els.childName.focus();
+          return;
+        }
+        addChildName(name);
+      });
+
+      els.childName.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        els.addChildName.click();
+      });
 
       els.addCustomItem.addEventListener("click", () => {
         const value = els.customItem.value.trim();
@@ -1014,11 +1060,39 @@
         els.previewImage.removeAttribute("src");
         els.previewText.textContent = "";
         els.ocrText.value = "";
-        els.ocrStatus.textContent = "スクショを選ぶと読み取りできます。";
+        els.ocrStatus.textContent = "スクショを選ぶと、日付・予定・持ち物の下書きを作れます。";
+        renderChildOptions();
         renderTemplateButtons();
         render();
         showToast("予定を追加しました");
       });
+    }
+
+    function renderChildOptions() {
+      const current = els.child.value;
+      const options = [...state.children, "家族全員", "自分"];
+      els.child.innerHTML = "";
+      options.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        els.child.appendChild(option);
+      });
+      if (options.includes(current)) els.child.value = current;
+    }
+
+    function addChildName(name) {
+      if (state.children.includes(name)) {
+        showToast("すでに登録されています");
+        els.child.value = name;
+        return;
+      }
+      state.children.push(name);
+      saveChildren();
+      renderChildOptions();
+      els.child.value = name;
+      els.childName.value = "";
+      showToast(`${name} を追加しました`);
     }
 
     function renderTemplateButtons() {
@@ -1415,6 +1489,19 @@
       ];
     }
 
+    function loadChildren() {
+      const raw = localStorage.getItem(CHILDREN_STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed.map((name) => String(name).trim()).filter(Boolean);
+        } catch (error) {
+          console.warn("名前データを読み込めませんでした", error);
+        }
+      }
+      return ["上の子", "下の子"];
+    }
+
     function saveEvents() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state.events));
@@ -1422,6 +1509,10 @@
         console.warn(error);
         showToast("保存容量が足りません。古いスクショを減らしてください");
       }
+    }
+
+    function saveChildren() {
+      localStorage.setItem(CHILDREN_STORAGE_KEY, JSON.stringify(state.children));
     }
 
     function showToast(message) {
