@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f6f5ef" />
+  <title>家族の予定・持ち物チェック</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f5ef;
+      --surface: #fffefa;
+      --ink: #222622;
+      --muted: #65706b;
+      --line: #ddd8cc;
+      --green: #2f6b55;
+      --blue: #32678d;
+      --coral: #bd6654;
+      --gold: #a97823;
+      --soft-green: #edf6f1;
+      --soft-blue: #eef5fb;
+      --soft-coral: #fff0ed;
+      --shadow: 0 16px 34px rgba(42, 36, 27, .12);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "YuGothic", "Noto Sans JP", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
+    body { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+    button, input, select, textarea { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
+
+    .app {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(246, 245, 239, .94);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(221, 216, 204, .88);
+      padding: 14px 16px 12px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .date-chip {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--green);
+      font-weight: 900;
+      box-shadow: 0 8px 20px rgba(42, 36, 27, .07);
+    }
+
+    .quick {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .quick button {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 900;
+    }
+
+    .quick button.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+    }
+
+    main {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(330px, .95fr);
+      gap: 14px;
+      align-items: start;
+      flex: 1;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .section-head {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fffefa, #faf8f1);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .sub {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .tools {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn,
+    .primary-btn,
+    .ghost-btn,
+    .danger-btn {
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .icon-btn {
+      width: 42px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+
+    .primary-btn {
+      width: 100%;
+      border-color: var(--green);
+      background: var(--green);
+      color: #fff;
+    }
+
+    .ghost-btn {
+      padding: 0 12px;
+      color: var(--green);
+    }
+
+    .danger-btn {
+      padding: 0 10px;
+      color: var(--coral);
+      border-color: rgba(189, 102, 84, .34);
+      background: #fff8f6;
+    }
+
+    .calendar {
+      padding: 12px;
+    }
+
+    .weekdays,
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .weekdays {
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .day {
+      min-height: 76px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 7px;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 5px;
+    }
+
+    .day.selected {
+      outline: 3px solid rgba(47, 107, 85, .18);
+      border-color: var(--green);
+      background: var(--soft-green);
+    }
+
+    .day.today .num {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 14px;
+    }
+
+    .marks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      min-height: 18px;
+    }
+
+    .dot {
+      width: 17px;
+      height: 17px;
+      border-radius: 999px;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .dot.nursery { background: var(--coral); }
+    .dot.school { background: var(--blue); }
+    .dot.work { background: var(--green); }
+
+    .side {
+      display: grid;
+      gap: 14px;
+    }
+
+    .selected-date {
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .selected-date strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .today-summary {
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .summary-box {
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 8px;
+      min-height: 58px;
+      background: #fff;
+    }
+
+    .summary-box b {
+      display: block;
+      font-size: 20px;
+      color: var(--green);
+      line-height: 1.1;
+    }
+
+    .summary-box span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .events {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      color: var(--muted);
+      line-height: 1.6;
+      background: #fffaf2;
+    }
+
+    .event-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .event-main {
+      padding: 11px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 7px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .tag.nursery { background: var(--coral); }
+    .tag.school { background: var(--blue); }
+    .tag.work { background: var(--green); }
+    .tag.child { background: #6f6256; }
+
+    .event-title {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .event-note {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .items {
+      border-top: 1px solid var(--line);
+      background: #fbfaf5;
+      padding: 10px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .check {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      padding: 8px 10px;
+    }
+
+    .check input {
+      width: 22px;
+      height: 22px;
+      accent-color: var(--green);
+    }
+
+    .check span {
+      overflow-wrap: anywhere;
+      font-weight: 800;
+    }
+
+    .check.done span {
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+
+    form {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--green);
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      padding: 11px 12px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 78px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(47, 107, 85, .14);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .hint {
+      margin: -3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      z-index: 30;
+      transform: translateX(-50%) translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .18s ease;
+      max-width: min(92vw, 420px);
+      border-radius: 8px;
+      background: #1f2a24;
+      color: #fff;
+      padding: 12px 14px;
+      font-weight: 900;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, .22);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 860px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 12px;
+      }
+
+      h1 { font-size: 21px; }
+      .day { min-height: 60px; padding: 5px; }
+      .num { width: 24px; height: 24px; font-size: 13px; }
+      .dot { width: 15px; height: 15px; font-size: 9px; }
+    }
+
+    @media (max-width: 440px) {
+      header { padding-inline: 12px; }
+      .date-chip { font-size: 12px; padding: 7px 8px; }
+      .calendar { padding: 8px; }
+      .weekdays, .days { gap: 4px; }
+      .day { min-height: 56px; border-radius: 7px; }
+      .today-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .two-col { grid-template-columns: 1fr; }
+      .event-main { grid-template-columns: 1fr; }
+      .danger-btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="topbar">
+        <h1>家族の予定・持ち物チェック</h1>
+        <div class="date-chip" id="todayChip"></div>
+      </div>
+      <div class="quick" aria-label="表示切替">
+        <button type="button" id="showToday">今日</button>
+        <button type="button" id="showWeek">今週</button>
+        <button type="button" id="showMonth">月</button>
+      </div>
+    </header>
+
+    <main>
+      <section aria-labelledby="calendarTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="calendarTitle">カレンダー</h2>
+            <span class="sub">保育園・小学校・仕事を朝まとめて確認</span>
+          </div>
+          <div class="tools">
+            <button class="icon-btn" type="button" id="prevMonth" aria-label="前の月">‹</button>
+            <button class="icon-btn" type="button" id="nextMonth" aria-label="次の月">›</button>
+          </div>
+        </div>
+        <div class="calendar">
+          <div class="weekdays" aria-hidden="true">
+            <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+          </div>
+          <div class="days" id="calendarDays"></div>
+        </div>
+      </section>
+
+      <div class="side">
+        <section aria-labelledby="listTitle">
+          <div class="selected-date">
+            <div>
+              <h2 id="listTitle">今日見るもの</h2>
+              <strong id="selectedDateLabel"></strong>
+            </div>
+            <button class="ghost-btn" type="button" id="jumpToday">今日</button>
+          </div>
+          <div class="today-summary" aria-label="選択日の状況">
+            <div class="summary-box"><b id="eventCount">0</b><span>予定</span></div>
+            <div class="summary-box"><b id="itemCount">0</b><span>持ち物</span></div>
+            <div class="summary-box"><b id="doneCount">0</b><span>完了</span></div>
+          </div>
+          <div class="events" id="eventList"></div>
+        </section>
+
+        <section aria-labelledby="formTitle">
+          <div class="section-head">
+            <div>
+              <h2 id="formTitle">家族予定を追加</h2>
+              <span class="sub">持ち物は改行で複数入力できます</span>
+            </div>
+          </div>
+          <form id="eventForm">
+            <div class="two-col">
+              <label>
+                種類
+                <select id="categoryInput">
+                  <option value="nursery">保育園</option>
+                  <option value="school">小学校</option>
+                  <option value="work">仕事</option>
+                </select>
+              </label>
+              <label>
+                誰の予定？
+                <select id="childInput">
+                  <option>上の子</option>
+                  <option>下の子</option>
+                  <option>家族全員</option>
+                  <option>自分</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              行事・予定名
+              <input id="titleInput" placeholder="例：遠足、参観日、提出締切" required />
+            </label>
+
+            <label>
+              時間
+              <input id="timeInput" placeholder="例：8:30、午前、帰りまで" />
+            </label>
+
+            <label>
+              持ち物
+              <textarea id="itemsInput" placeholder="水筒&#10;帽子&#10;連絡帳"></textarea>
+            </label>
+            <p class="hint">持ち物がない仕事予定や提出日も登録できます。</p>
+
+            <label>
+              メモ
+              <textarea id="memoInput" placeholder="集合場所、提出先、注意点など"></textarea>
+            </label>
+
+            <button class="primary-btn" type="submit">追加する</button>
+          </form>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = "familyEventChecklistDemo.v1";
+    const today = stripTime(new Date());
+    const state = {
+      selectedDate: toKey(today),
+      visibleMonth: new Date(today.getFullYear(), today.getMonth(), 1),
+      view: "today",
+      events: loadEvents()
+    };
+
+    const categoryLabels = {
+      nursery: "保育園",
+      school: "小学校",
+      work: "仕事"
+    };
+
+    const categoryShort = {
+      nursery: "保",
+      school: "小",
+      work: "仕"
+    };
+
+    const els = {
+      todayChip: document.querySelector("#todayChip"),
+      showToday: document.querySelector("#showToday"),
+      showWeek: document.querySelector("#showWeek"),
+      showMonth: document.querySelector("#showMonth"),
+      calendarTitle: document.querySelector("#calendarTitle"),
+      calendarDays: document.querySelector("#calendarDays"),
+      prevMonth: document.querySelector("#prevMonth"),
+      nextMonth: document.querySelector("#nextMonth"),
+      selectedDateLabel: document.querySelector("#selectedDateLabel"),
+      jumpToday: document.querySelector("#jumpToday"),
+      eventCount: document.querySelector("#eventCount"),
+      itemCount: document.querySelector("#itemCount"),
+      doneCount: document.querySelector("#doneCount"),
+      eventList: document.querySelector("#eventList"),
+      form: document.querySelector("#eventForm"),
+      category: document.querySelector("#categoryInput"),
+      child: document.querySelector("#childInput"),
+      title: document.querySelector("#titleInput"),
+      time: document.querySelector("#timeInput"),
+      items: document.querySelector("#itemsInput"),
+      memo: document.querySelector("#memoInput"),
+      toast: document.querySelector("#toast")
+    };
+
+    bindEvents();
+    render();
+
+    function bindEvents() {
+      els.prevMonth.addEventListener("click", () => {
+        state.visibleMonth = new Date(state.visibleMonth.getFullYear(), state.visibleMonth.getMonth() - 1, 1);
+        state.view = "month";
+        render();
+      });
+
+      els.nextMonth.addEventListener("click", () => {
+        state.visibleMonth = new Date(state.visibleMonth.getFullYear(), state.visibleMonth.getMonth() + 1, 1);
+        state.view = "month";
+        render();
+      });
+
+      els.jumpToday.addEventListener("click", () => {
+        state.selectedDate = toKey(today);
+        state.visibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        state.view = "today";
+        render();
+      });
+
+      els.showToday.addEventListener("click", () => {
+        state.selectedDate = toKey(today);
+        state.visibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        state.view = "today";
+        render();
+      });
+
+      els.showWeek.addEventListener("click", () => {
+        state.view = "week";
+        render();
+      });
+
+      els.showMonth.addEventListener("click", () => {
+        state.view = "month";
+        render();
+      });
+
+      els.form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const title = els.title.value.trim();
+        if (!title) {
+          showToast("予定名を入力してください");
+          els.title.focus();
+          return;
+        }
+
+        state.events.push({
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          date: state.selectedDate,
+          category: els.category.value,
+          child: els.child.value,
+          title,
+          time: els.time.value.trim(),
+          items: els.items.value.split("\n").map((item) => item.trim()).filter(Boolean).map((name) => ({
+            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            name,
+            done: false
+          })),
+          memo: els.memo.value.trim(),
+          createdAt: new Date().toISOString()
+        });
+
+        saveEvents();
+        els.form.reset();
+        render();
+        showToast("予定を追加しました");
+      });
+    }
+
+    function render() {
+      els.todayChip.textContent = formatShort(today);
+      renderQuickButtons();
+      renderCalendar();
+      renderEvents();
+    }
+
+    function renderQuickButtons() {
+      els.showToday.classList.toggle("active", state.view === "today");
+      els.showWeek.classList.toggle("active", state.view === "week");
+      els.showMonth.classList.toggle("active", state.view === "month");
+    }
+
+    function renderCalendar() {
+      const year = state.visibleMonth.getFullYear();
+      const month = state.visibleMonth.getMonth();
+      const first = new Date(year, month, 1);
+      const start = addDays(first, -first.getDay());
+      els.calendarTitle.textContent = `${year}年${month + 1}月`;
+      els.calendarDays.innerHTML = "";
+
+      for (let i = 0; i < 42; i += 1) {
+        const date = addDays(start, i);
+        const key = toKey(date);
+        const dayEvents = state.events.filter((item) => item.date === key);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "day";
+        button.setAttribute("aria-label", `${formatLong(date)} ${dayEvents.length}件`);
+        if (key === state.selectedDate) button.classList.add("selected");
+        if (key === toKey(today)) button.classList.add("today");
+        if (date.getMonth() !== month) button.style.visibility = "hidden";
+        const dots = dayEvents.slice(0, 4).map((item) => `<span class="dot ${item.category}">${categoryShort[item.category]}</span>`).join("");
+        button.innerHTML = `<span class="num">${date.getDate()}</span><span class="marks">${dots}</span>`;
+        button.addEventListener("click", () => {
+          state.selectedDate = key;
+          state.view = "today";
+          render();
+        });
+        els.calendarDays.appendChild(button);
+      }
+    }
+
+    function renderEvents() {
+      const selectedDate = fromKey(state.selectedDate);
+      const items = getVisibleEvents();
+      const summaryItems = state.view === "today" ? state.events.filter((item) => item.date === state.selectedDate) : items;
+      const allCarryItems = summaryItems.flatMap((event) => event.items);
+      const doneCarryItems = allCarryItems.filter((item) => item.done);
+
+      els.selectedDateLabel.textContent = getViewLabel(selectedDate);
+      els.eventCount.textContent = summaryItems.length;
+      els.itemCount.textContent = allCarryItems.length;
+      els.doneCount.textContent = doneCarryItems.length;
+      els.eventList.innerHTML = "";
+
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = state.view === "week" ? "この週の予定はまだありません。" : "この日の予定はまだありません。下のフォームから追加できます。";
+        els.eventList.appendChild(empty);
+        return;
+      }
+
+      items.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "event-card";
+        card.innerHTML = `
+          <div class="event-main">
+            <div>
+              <div class="tag-row">
+                <span class="tag ${item.category}">${categoryLabels[item.category]}</span>
+                <span class="tag child">${escapeHtml(item.child)}</span>
+              </div>
+              <h3 class="event-title">${escapeHtml(item.title)}</h3>
+              <p class="event-note">${escapeHtml([item.time, item.memo].filter(Boolean).join(" / ")) || "メモなし"}</p>
+            </div>
+            <button class="danger-btn" type="button">取消</button>
+          </div>
+          ${item.items.length ? `<div class="items">${item.items.map((carry) => renderCarryItem(item.id, carry)).join("")}</div>` : ""}
+        `;
+
+        card.querySelector(".danger-btn").addEventListener("click", () => {
+          if (!window.confirm(`${item.title} を取消しますか？`)) return;
+          state.events = state.events.filter((event) => event.id !== item.id);
+          saveEvents();
+          render();
+          showToast("予定を取消しました");
+        });
+
+        card.querySelectorAll("[data-carry-id]").forEach((checkbox) => {
+          checkbox.addEventListener("change", () => {
+            const eventId = checkbox.dataset.eventId;
+            const carryId = checkbox.dataset.carryId;
+            const event = state.events.find((candidate) => candidate.id === eventId);
+            const carry = event?.items.find((candidate) => candidate.id === carryId);
+            if (!carry) return;
+            carry.done = checkbox.checked;
+            saveEvents();
+            render();
+          });
+        });
+
+        els.eventList.appendChild(card);
+      });
+    }
+
+    function renderCarryItem(eventId, item) {
+      return `
+        <label class="check ${item.done ? "done" : ""}">
+          <input type="checkbox" data-event-id="${eventId}" data-carry-id="${item.id}" ${item.done ? "checked" : ""} />
+          <span>${escapeHtml(item.name)}</span>
+        </label>
+      `;
+    }
+
+    function getViewLabel(selectedDate) {
+      if (state.view === "week") return `${formatLong(selectedDate)} から7日間`;
+      if (state.view === "month") return `${state.visibleMonth.getFullYear()}年${state.visibleMonth.getMonth() + 1}月`;
+      return formatLong(selectedDate);
+    }
+
+    function getVisibleEvents() {
+      if (state.view === "week") {
+        const start = fromKey(state.selectedDate);
+        const end = addDays(start, 6);
+        return state.events
+          .filter((item) => {
+            const date = fromKey(item.date);
+            return date >= start && date <= end;
+          })
+          .sort(sortEvents);
+      }
+
+      if (state.view === "month") {
+        const year = state.visibleMonth.getFullYear();
+        const month = state.visibleMonth.getMonth();
+        return state.events
+          .filter((item) => {
+            const date = fromKey(item.date);
+            return date.getFullYear() === year && date.getMonth() === month;
+          })
+          .sort(sortEvents);
+      }
+
+      return state.events.filter((item) => item.date === state.selectedDate).sort(sortEvents);
+    }
+
+    function sortEvents(a, b) {
+      return `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
+    }
+
+    function loadEvents() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (error) {
+          console.warn("予定データを読み込めませんでした", error);
+        }
+      }
+
+      return [
+        {
+          id: "sample-1",
+          date: toKey(today),
+          category: "nursery",
+          child: "下の子",
+          title: "プールの日",
+          time: "朝",
+          memo: "体温チェックを忘れない",
+          items: [
+            { id: "sample-1-a", name: "水着", done: false },
+            { id: "sample-1-b", name: "タオル", done: false },
+            { id: "sample-1-c", name: "プールカード", done: true }
+          ],
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "sample-2",
+          date: toKey(today),
+          category: "school",
+          child: "上の子",
+          title: "図工の材料提出",
+          time: "登校時",
+          memo: "紙袋にまとめる",
+          items: [
+            { id: "sample-2-a", name: "空き箱", done: false },
+            { id: "sample-2-b", name: "のり", done: false }
+          ],
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "sample-3",
+          date: toKey(addDays(today, 2)),
+          category: "work",
+          child: "自分",
+          title: "午前だけ仕事",
+          time: "9:00-12:00",
+          memo: "午後は迎え対応",
+          items: [],
+          createdAt: new Date().toISOString()
+        }
+      ];
+    }
+
+    function saveEvents() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.events));
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 1800);
+    }
+
+    function stripTime(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function addDays(date, days) {
+      const next = new Date(date);
+      next.setDate(next.getDate() + days);
+      return stripTime(next);
+    }
+
+    function toKey(date) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function fromKey(key) {
+      const [year, month, day] = key.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function formatShort(date) {
+      return `${date.getMonth() + 1}/${date.getDate()} ${["日", "月", "火", "水", "木", "金", "土"][date.getDay()]}`;
+    }
+
+    function formatLong(date) {
+      return `${date.getMonth() + 1}月${date.getDate()}日（${["日", "月", "火", "水", "木", "金", "土"][date.getDay()]}）`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
