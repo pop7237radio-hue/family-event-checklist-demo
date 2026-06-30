@@ -851,6 +851,8 @@
               <input id="timeInput" placeholder="例：8:30、午前、帰りまで" />
             </label>
 
+            <button class="primary-btn" type="submit">この予定を追加</button>
+
             <label>
               配布資料のスクショ
               <input id="screenshotInput" type="file" accept="image/*" />
@@ -1024,7 +1026,10 @@
         render();
       });
 
-      els.category.addEventListener("change", renderTemplateButtons);
+      els.category.addEventListener("change", () => {
+        if (els.category.value === "work") els.child.value = "自分";
+        renderTemplateButtons();
+      });
 
       els.addChildName.addEventListener("click", () => {
         const name = els.childName.value.trim();
@@ -1109,6 +1114,7 @@
 
       els.form.addEventListener("submit", (event) => {
         event.preventDefault();
+        if (els.category.value === "work") els.child.value = "自分";
         const title = els.title.value.trim();
         if (!title) {
           showToast("予定名を入力してください");
@@ -1231,6 +1237,7 @@
         els.ocrText.value = text;
         const draft = text ? applyOcrDraft(text) : null;
         const candidates = text ? extractScheduleCandidates(text) : [];
+        if (!candidates.length && draft?.fallbackCandidate) candidates.push(draft.fallbackCandidate);
         renderOcrCandidates(candidates);
         const garbled = isLikelyGarbled(text);
         els.ocrStatus.textContent = garbled
@@ -1276,11 +1283,13 @@
       const normalized = normalizeText(text);
       const lines = getOcrTextLines();
       let changed = false;
+      let candidateDate = fromKey(state.selectedDate);
       const foundDate = extractDateFromText(normalized);
       if (foundDate) {
         state.selectedDate = toKey(foundDate);
         state.visibleMonth = new Date(foundDate.getFullYear(), foundDate.getMonth(), 1);
         state.view = "today";
+        candidateDate = foundDate;
         changed = true;
       }
 
@@ -1313,7 +1322,18 @@
       }
 
       if (changed) render();
-      return { changed };
+      return {
+        changed,
+        fallbackCandidate: title
+          ? {
+            month: candidateDate.getMonth() + 1,
+            day: candidateDate.getDate(),
+            weekday: ["日", "月", "火", "水", "木", "金", "土"][candidateDate.getDay()],
+            title,
+            raw: lines.slice(0, 3).join(" / ")
+          }
+          : null
+      };
     }
 
     function renderOcrCandidates(candidates) {
