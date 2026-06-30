@@ -1316,11 +1316,6 @@
         changed = true;
       }
 
-      if (text.trim()) {
-        els.memo.value = [els.memo.value.trim(), `読み取りメモ:\n${text.trim()}`].filter(Boolean).join("\n\n");
-        changed = true;
-      }
-
       if (changed) render();
       return {
         changed,
@@ -1366,7 +1361,7 @@
       els.category.value = inferCategory(candidate.title) || "school";
       renderTemplateButtons();
       els.title.value = candidate.title;
-      els.memo.value = [els.memo.value.trim(), `読み取り候補: ${candidate.raw}`].filter(Boolean).join("\n\n");
+      els.memo.value = cleanCandidateMemo(candidate.raw);
       render();
       showToast("候補をフォームに入れました");
     }
@@ -1424,6 +1419,17 @@
         .trim()
         .replace(/^日\s*/, "")
         .slice(0, 32);
+    }
+
+    function cleanCandidateMemo(value) {
+      const text = String(value || "")
+        .replace(/https?:\/\/\S+/g, "")
+        .replace(/www\.\S+/g, "")
+        .replace(/[A-Za-z]{2,}/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!isUsefulCandidateTitle(text)) return "";
+      return text.length > 42 ? text.slice(0, 42) : text;
     }
 
     function pushCandidate(candidates, month, day, weekday, title, raw) {
