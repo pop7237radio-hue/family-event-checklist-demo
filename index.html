@@ -560,6 +560,50 @@
       line-height: 1.5;
     }
 
+    .ocr-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft-blue);
+      padding: 10px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .ocr-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .ocr-actions button,
+    .ocr-read-btn {
+      min-height: 42px;
+      border: 1px solid var(--blue);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--blue);
+      padding: 0 10px;
+      font-weight: 900;
+    }
+
+    .ocr-read-btn {
+      width: 100%;
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .ocr-read-btn:disabled {
+      opacity: .58;
+      cursor: wait;
+    }
+
+    .ocr-status {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     .hint {
       margin: -3px 0 0;
       color: var(--muted);
@@ -614,8 +658,10 @@
       .danger-btn { width: 100%; }
       .add-item-row { grid-template-columns: 1fr; }
       .add-item-row button { width: 100%; }
+      .ocr-actions { grid-template-columns: 1fr; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
   <div class="app">
@@ -714,7 +760,20 @@
               <img id="previewImage" alt="添付した配布資料のプレビュー" />
               <span id="previewText"></span>
             </div>
-            <p class="hint">プリントや連絡帳アプリのスクショを添付できます。文字の自動読み取りは次の改善候補です。</p>
+            <p class="hint">プリントや連絡帳アプリのスクショを添付して、文字を読み取れます。</p>
+
+            <div class="ocr-box">
+              <button class="ocr-read-btn" type="button" id="readScreenshotText">スクショから文字を読み取る</button>
+              <div class="ocr-status" id="ocrStatus">スクショを選ぶと読み取りできます。</div>
+              <label>
+                読み取った文字
+                <textarea id="ocrTextInput" placeholder="ここに読み取り結果が入ります"></textarea>
+              </label>
+              <div class="ocr-actions">
+                <button type="button" id="useOcrAsTitle">予定名に入れる</button>
+                <button type="button" id="addOcrToMemo">メモに追加</button>
+              </div>
+            </div>
 
             <div class="template-box">
               <p class="template-title">よく使う持ち物</p>
@@ -800,6 +859,11 @@
       filePreview: document.querySelector("#filePreview"),
       previewImage: document.querySelector("#previewImage"),
       previewText: document.querySelector("#previewText"),
+      readScreenshotText: document.querySelector("#readScreenshotText"),
+      ocrStatus: document.querySelector("#ocrStatus"),
+      ocrText: document.querySelector("#ocrTextInput"),
+      useOcrAsTitle: document.querySelector("#useOcrAsTitle"),
+      addOcrToMemo: document.querySelector("#addOcrToMemo"),
       templateButtons: document.querySelector("#templateButtons"),
       customItem: document.querySelector("#customItemInput"),
       addCustomItem: document.querySelector("#addCustomItem"),
@@ -874,6 +938,8 @@
         const file = els.screenshot.files?.[0];
         selectedSourceImage = null;
         els.filePreview.classList.remove("show");
+        els.ocrText.value = "";
+        els.ocrStatus.textContent = "スクショを選ぶと読み取りできます。";
         if (!file) return;
         if (!file.type.startsWith("image/")) {
           showToast("画像ファイルを選んでください");
@@ -884,12 +950,35 @@
           selectedSourceImage = await resizeImage(file);
           els.previewImage.src = selectedSourceImage.dataUrl;
           els.previewText.textContent = `${file.name} を添付しました`;
+          els.ocrStatus.textContent = "スクショを読み取れます。文字が小さい時は少し時間がかかります。";
           els.filePreview.classList.add("show");
         } catch (error) {
           console.warn(error);
           showToast("画像を読み込めませんでした");
           els.screenshot.value = "";
         }
+      });
+
+      els.readScreenshotText.addEventListener("click", readScreenshotText);
+
+      els.useOcrAsTitle.addEventListener("click", () => {
+        const firstLine = getOcrTextLines()[0];
+        if (!firstLine) {
+          showToast("読み取った文字がありません");
+          return;
+        }
+        els.title.value = firstLine.slice(0, 40);
+        showToast("予定名に入れました");
+      });
+
+      els.addOcrToMemo.addEventListener("click", () => {
+        const text = els.ocrText.value.trim();
+        if (!text) {
+          showToast("読み取った文字がありません");
+          return;
+        }
+        els.memo.value = [els.memo.value.trim(), text].filter(Boolean).join("\n\n");
+        showToast("メモに追加しました");
       });
 
       els.form.addEventListener("submit", (event) => {
@@ -924,6 +1013,8 @@
         els.filePreview.classList.remove("show");
         els.previewImage.removeAttribute("src");
         els.previewText.textContent = "";
+        els.ocrText.value = "";
+        els.ocrStatus.textContent = "スクショを選ぶと読み取りできます。";
         renderTemplateButtons();
         render();
         showToast("予定を追加しました");
@@ -952,6 +1043,53 @@
       currentItems.push(name);
       els.items.value = currentItems.join("\n");
       showToast(`${name} を追加しました`);
+    }
+
+    async function readScreenshotText() {
+      if (!selectedSourceImage?.dataUrl) {
+        showToast("先にスクショを選んでください");
+        return;
+      }
+      if (!window.Tesseract) {
+        showToast("読み取り機能を読み込み中です。少し待ってください");
+        return;
+      }
+
+      els.readScreenshotText.disabled = true;
+      els.ocrStatus.textContent = "文字を読み取っています...";
+      try {
+        const worker = await Tesseract.createWorker("jpn+eng", 1, {
+          logger: (message) => {
+            if (message.status !== "recognizing text") return;
+            const pct = Math.round((message.progress || 0) * 100);
+            els.ocrStatus.textContent = `文字を読み取っています... ${pct}%`;
+          }
+        });
+        const result = await worker.recognize(selectedSourceImage.dataUrl);
+        await worker.terminate();
+        const text = cleanupOcrText(result.data.text);
+        els.ocrText.value = text;
+        els.ocrStatus.textContent = text ? "読み取りました。必要な部分だけ予定名やメモに入れてください。" : "文字を読み取れませんでした。スクショを拡大して撮ると改善します。";
+        showToast(text ? "読み取り完了" : "読み取り結果が空でした");
+      } catch (error) {
+        console.warn(error);
+        els.ocrStatus.textContent = "読み取りに失敗しました。通信状態や画像の明るさを確認してください。";
+        showToast("読み取りに失敗しました");
+      } finally {
+        els.readScreenshotText.disabled = false;
+      }
+    }
+
+    function cleanupOcrText(text) {
+      return String(text || "")
+        .split("\n")
+        .map((line) => line.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    function getOcrTextLines() {
+      return els.ocrText.value.split("\n").map((line) => line.trim()).filter(Boolean);
     }
 
     function render() {
