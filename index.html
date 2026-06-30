@@ -764,7 +764,7 @@
 
             <div class="ocr-box">
               <button class="ocr-read-btn" type="button" id="readScreenshotText">スクショから文字を読み取る</button>
-              <div class="ocr-status" id="ocrStatus">スクショを選ぶと読み取りできます。</div>
+              <div class="ocr-status" id="ocrStatus">スクショを選ぶと、日付・予定・持ち物の下書きを作れます。</div>
               <label>
                 読み取った文字
                 <textarea id="ocrTextInput" placeholder="ここに読み取り結果が入ります"></textarea>
@@ -939,7 +939,7 @@
         selectedSourceImage = null;
         els.filePreview.classList.remove("show");
         els.ocrText.value = "";
-        els.ocrStatus.textContent = "スクショを選ぶと読み取りできます。";
+        els.ocrStatus.textContent = "スクショを選ぶと、日付・予定・持ち物の下書きを作れます。";
         if (!file) return;
         if (!file.type.startsWith("image/")) {
           showToast("画像ファイルを選んでください");
@@ -950,7 +950,7 @@
           selectedSourceImage = await resizeImage(file);
           els.previewImage.src = selectedSourceImage.dataUrl;
           els.previewText.textContent = `${file.name} を添付しました`;
-          els.ocrStatus.textContent = "スクショを読み取れます。文字が小さい時は少し時間がかかります。";
+          els.ocrStatus.textContent = "スクショを読み取れます。読んだ内容はフォームへ自動反映します。";
           els.filePreview.classList.add("show");
         } catch (error) {
           console.warn(error);
@@ -1069,7 +1069,12 @@
         await worker.terminate();
         const text = cleanupOcrText(result.data.text);
         els.ocrText.value = text;
-        els.ocrStatus.textContent = text ? "読み取りました。必要な部分だけ予定名やメモに入れてください。" : "文字を読み取れませんでした。スクショを拡大して撮ると改善します。";
+        const draft = text ? applyOcrDraft(text) : null;
+        els.ocrStatus.textContent = draft?.changed
+          ? "日付・予定名・持ち物の下書きを自動反映しました。確認して追加してください。"
+          : text
+            ? "読み取りました。日付が取れない時は、日付だけ選んで追加してください。"
+            : "文字を読み取れませんでした。スクショを拡大して撮ると改善します。";
         showToast(text ? "読み取り完了" : "読み取り結果が空でした");
       } catch (error) {
         console.warn(error);
@@ -1090,6 +1095,107 @@
 
     function getOcrTextLines() {
       return els.ocrText.value.split("\n").map((line) => line.trim()).filter(Boolean);
+    }
+
+    function applyOcrDraft(text) {
+      const normalized = normalizeText(text);
+      const lines = getOcrTextLines();
+      let changed = false;
+      const foundDate = extractDateFromText(normalized);
+      if (foundDate) {
+        state.selectedDate = toKey(foundDate);
+        state.visibleMonth = new Date(foundDate.getFullYear(), foundDate.getMonth(), 1);
+        state.view = "today";
+        changed = true;
+      }
+
+      const inferredCategory = inferCategory(normalized);
+      if (inferredCategory && els.category.value !== inferredCategory) {
+        els.category.value = inferredCategory;
+        renderTemplateButtons();
+        changed = true;
+      }
+
+      const title = extractTitle(lines);
+      if (title) {
+        els.title.value = title;
+        changed = true;
+      }
+
+      const foundItems = extractCarryItems(normalized);
+      if (foundItems.length) {
+        const currentItems = els.items.value.split("\n").map((item) => item.trim()).filter(Boolean);
+        foundItems.forEach((name) => {
+          if (!currentItems.includes(name)) currentItems.push(name);
+        });
+        els.items.value = currentItems.join("\n");
+        changed = true;
+      }
+
+      if (text.trim()) {
+        els.memo.value = [els.memo.value.trim(), `読み取りメモ:\n${text.trim()}`].filter(Boolean).join("\n\n");
+        changed = true;
+      }
+
+      if (changed) render();
+      return { changed };
+    }
+
+    function normalizeText(text) {
+      return String(text || "")
+        .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+        .replace(/[／．。]/g, "/")
+        .replace(/[（）]/g, "")
+        .replace(/\s+/g, " ");
+    }
+
+    function extractDateFromText(text) {
+      const currentYear = today.getFullYear();
+      const patterns = [
+        /(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/,
+        /(\d{1,2})\s*月\s*(\d{1,2})\s*日/,
+        /(\d{1,2})\s*\/\s*(\d{1,2})/
+      ];
+
+      let match = text.match(patterns[0]);
+      if (match) return makeDate(Number(match[1]), Number(match[2]), Number(match[3]));
+
+      match = text.match(patterns[1]);
+      if (match) return makeDate(currentYear, Number(match[1]), Number(match[2]));
+
+      match = text.match(patterns[2]);
+      if (match) return makeDate(currentYear, Number(match[1]), Number(match[2]));
+
+      return null;
+    }
+
+    function makeDate(year, month, day) {
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+      return stripTime(date);
+    }
+
+    function inferCategory(text) {
+      if (/保育|園|幼稚園/.test(text)) return "nursery";
+      if (/小学校|学校|学年|学級|授業|宿題|給食/.test(text)) return "school";
+      if (/勤務|仕事|会議|出勤/.test(text)) return "work";
+      return "";
+    }
+
+    function extractTitle(lines) {
+      const skipWords = /持ち物|準備|お願い|お知らせ|連絡|日時|場所|保護者|締切|提出|令和|202\d|\d+月\d+日|\d+\/\d+/;
+      const candidates = lines
+        .map((line) => line.replace(/^[・●○■□◆◇\-\s]+/, "").trim())
+        .filter((line) => line.length >= 3 && line.length <= 28)
+        .filter((line) => !skipWords.test(normalizeText(line)));
+      const eventWord = candidates.find((line) => /遠足|参観|運動会|発表会|懇談|面談|健診|検診|集金|プール|避難訓練|給食|弁当|提出/.test(line));
+      return eventWord || candidates[0] || "";
+    }
+
+    function extractCarryItems(text) {
+      const allTemplates = Array.from(new Set(Object.values(carryTemplates).flat()));
+      const extraWords = ["弁当", "お弁当", "レジャーシート", "雨具", "カッパ", "軍手", "雑巾", "牛乳パック", "新聞紙", "絵の具", "クレパス", "色鉛筆", "集金袋", "印鑑", "体温カード", "プールカード"];
+      return [...allTemplates, ...extraWords].filter((name) => text.includes(name));
     }
 
     function render() {
