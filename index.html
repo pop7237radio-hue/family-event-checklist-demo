@@ -286,6 +286,14 @@
       border-bottom: 1px solid var(--line);
     }
 
+    .category-summary {
+      padding: 0 12px 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
     .summary-box {
       border-radius: 8px;
       border: 1px solid var(--line);
@@ -306,6 +314,31 @@
       margin-top: 4px;
       color: var(--muted);
       font-size: 12px;
+    }
+
+    .mini-summary {
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 54px;
+      color: #fff;
+    }
+
+    .mini-summary.nursery { background: var(--coral); }
+    .mini-summary.school { background: var(--blue); }
+    .mini-summary.work { background: var(--green); }
+
+    .mini-summary b {
+      display: block;
+      font-size: 19px;
+      line-height: 1.1;
+    }
+
+    .mini-summary span {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 900;
+      opacity: .95;
     }
 
     .events {
@@ -670,6 +703,7 @@
       .weekdays, .days { gap: 4px; }
       .day { min-height: 56px; border-radius: 7px; }
       .today-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .category-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .two-col { grid-template-columns: 1fr; }
       .event-main { grid-template-columns: 1fr; }
       .danger-btn { width: 100%; }
@@ -699,7 +733,7 @@
         <div class="section-head">
           <div>
             <h2 id="calendarTitle">カレンダー</h2>
-            <span class="sub">保育園・小学校・仕事を朝まとめて確認</span>
+            <span class="sub">保育園・小学校・自分の予定を朝まとめて確認</span>
           </div>
           <div class="tools">
             <button class="icon-btn" type="button" id="prevMonth" aria-label="前の月">‹</button>
@@ -728,6 +762,11 @@
             <div class="summary-box"><b id="itemCount">0</b><span>持ち物</span></div>
             <div class="summary-box"><b id="doneCount">0</b><span>完了</span></div>
           </div>
+          <div class="category-summary" aria-label="分類別の予定数">
+            <div class="mini-summary nursery"><b id="nurseryCount">0</b><span>保育園</span></div>
+            <div class="mini-summary school"><b id="schoolCount">0</b><span>小学校</span></div>
+            <div class="mini-summary work"><b id="workCount">0</b><span>自分</span></div>
+          </div>
           <div class="events" id="eventList"></div>
         </section>
 
@@ -745,7 +784,7 @@
                 <select id="categoryInput">
                   <option value="nursery">保育園</option>
                   <option value="school">小学校</option>
-                  <option value="work">仕事</option>
+                  <option value="work">自分（ママ）</option>
                 </select>
               </label>
               <label>
@@ -847,19 +886,19 @@
     const categoryLabels = {
       nursery: "保育園",
       school: "小学校",
-      work: "仕事"
+      work: "自分（ママ）"
     };
 
     const categoryShort = {
       nursery: "保",
       school: "小",
-      work: "仕"
+      work: "マ"
     };
 
     const carryTemplates = {
       nursery: ["連絡帳", "水筒", "帽子", "着替え", "タオル", "お昼寝セット", "ビニール袋", "上履き"],
       school: ["連絡帳", "水筒", "給食袋", "体操服", "上履き", "宿題", "筆箱", "ハンカチ", "ティッシュ", "図工材料"],
-      work: ["社員証", "手帳", "書類", "パソコン", "充電器"]
+      work: ["手帳", "書類", "財布", "スマホ", "充電器", "エコバッグ"]
     };
 
     const els = {
@@ -876,6 +915,9 @@
       eventCount: document.querySelector("#eventCount"),
       itemCount: document.querySelector("#itemCount"),
       doneCount: document.querySelector("#doneCount"),
+      nurseryCount: document.querySelector("#nurseryCount"),
+      schoolCount: document.querySelector("#schoolCount"),
+      workCount: document.querySelector("#workCount"),
       eventList: document.querySelector("#eventList"),
       form: document.querySelector("#eventForm"),
       category: document.querySelector("#categoryInput"),
@@ -1252,7 +1294,7 @@
     function inferCategory(text) {
       if (/保育|園|幼稚園/.test(text)) return "nursery";
       if (/小学校|学校|学年|学級|授業|宿題|給食/.test(text)) return "school";
-      if (/勤務|仕事|会議|出勤/.test(text)) return "work";
+      if (/勤務|仕事|会議|出勤|美容室|病院|買い物|役所|自分|ママ/.test(text)) return "work";
       return "";
     }
 
@@ -1326,6 +1368,9 @@
       els.eventCount.textContent = summaryItems.length;
       els.itemCount.textContent = allCarryItems.length;
       els.doneCount.textContent = doneCarryItems.length;
+      els.nurseryCount.textContent = summaryItems.filter((item) => item.category === "nursery").length;
+      els.schoolCount.textContent = summaryItems.filter((item) => item.category === "school").length;
+      els.workCount.textContent = summaryItems.filter((item) => item.category === "work").length;
       els.eventList.innerHTML = "";
 
       if (!items.length) {
