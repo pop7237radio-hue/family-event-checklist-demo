@@ -412,6 +412,29 @@
       text-decoration: line-through;
     }
 
+    .source-shot {
+      border-top: 1px solid var(--line);
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .source-shot img {
+      width: 100%;
+      max-height: 260px;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .source-shot span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
     form {
       padding: 14px;
       display: grid;
@@ -454,6 +477,87 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
+    }
+
+    .template-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfaf5;
+      display: grid;
+      gap: 9px;
+    }
+
+    .template-title {
+      margin: 0;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .template-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .template-btn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .template-btn:active {
+      background: var(--soft-green);
+    }
+
+    .add-item-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .add-item-row button {
+      min-height: 43px;
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      background: var(--green);
+      color: #fff;
+      padding: 0 12px;
+      font-weight: 900;
+    }
+
+    .file-preview {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px;
+      display: none;
+      gap: 8px;
+    }
+
+    .file-preview.show {
+      display: grid;
+    }
+
+    .file-preview img {
+      width: 100%;
+      max-height: 220px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .file-preview span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
     }
 
     .hint {
@@ -508,6 +612,8 @@
       .two-col { grid-template-columns: 1fr; }
       .event-main { grid-template-columns: 1fr; }
       .danger-btn { width: 100%; }
+      .add-item-row { grid-template-columns: 1fr; }
+      .add-item-row button { width: 100%; }
     }
   </style>
 </head>
@@ -601,6 +707,28 @@
             </label>
 
             <label>
+              配布資料のスクショ
+              <input id="screenshotInput" type="file" accept="image/*" />
+            </label>
+            <div class="file-preview" id="filePreview" aria-live="polite">
+              <img id="previewImage" alt="添付した配布資料のプレビュー" />
+              <span id="previewText"></span>
+            </div>
+            <p class="hint">プリントや連絡帳アプリのスクショを添付できます。文字の自動読み取りは次の改善候補です。</p>
+
+            <div class="template-box">
+              <p class="template-title">よく使う持ち物</p>
+              <div class="template-buttons" id="templateButtons"></div>
+              <div class="add-item-row">
+                <label>
+                  その他
+                  <input id="customItemInput" placeholder="例：牛乳パック、雑巾、集金袋" />
+                </label>
+                <button type="button" id="addCustomItem">追加</button>
+              </div>
+            </div>
+
+            <label>
               持ち物
               <textarea id="itemsInput" placeholder="水筒&#10;帽子&#10;連絡帳"></textarea>
             </label>
@@ -642,6 +770,12 @@
       work: "仕"
     };
 
+    const carryTemplates = {
+      nursery: ["連絡帳", "水筒", "帽子", "着替え", "タオル", "お昼寝セット", "ビニール袋", "上履き"],
+      school: ["連絡帳", "水筒", "給食袋", "体操服", "上履き", "宿題", "筆箱", "ハンカチ", "ティッシュ", "図工材料"],
+      work: ["社員証", "手帳", "書類", "パソコン", "充電器"]
+    };
+
     const els = {
       todayChip: document.querySelector("#todayChip"),
       showToday: document.querySelector("#showToday"),
@@ -662,12 +796,22 @@
       child: document.querySelector("#childInput"),
       title: document.querySelector("#titleInput"),
       time: document.querySelector("#timeInput"),
+      screenshot: document.querySelector("#screenshotInput"),
+      filePreview: document.querySelector("#filePreview"),
+      previewImage: document.querySelector("#previewImage"),
+      previewText: document.querySelector("#previewText"),
+      templateButtons: document.querySelector("#templateButtons"),
+      customItem: document.querySelector("#customItemInput"),
+      addCustomItem: document.querySelector("#addCustomItem"),
       items: document.querySelector("#itemsInput"),
       memo: document.querySelector("#memoInput"),
       toast: document.querySelector("#toast")
     };
 
+    let selectedSourceImage = null;
+
     bindEvents();
+    renderTemplateButtons();
     render();
 
     function bindEvents() {
@@ -707,6 +851,47 @@
         render();
       });
 
+      els.category.addEventListener("change", renderTemplateButtons);
+
+      els.addCustomItem.addEventListener("click", () => {
+        const value = els.customItem.value.trim();
+        if (!value) {
+          showToast("追加する持ち物を入力してください");
+          els.customItem.focus();
+          return;
+        }
+        addCarryText(value);
+        els.customItem.value = "";
+      });
+
+      els.customItem.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        els.addCustomItem.click();
+      });
+
+      els.screenshot.addEventListener("change", async () => {
+        const file = els.screenshot.files?.[0];
+        selectedSourceImage = null;
+        els.filePreview.classList.remove("show");
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+          showToast("画像ファイルを選んでください");
+          els.screenshot.value = "";
+          return;
+        }
+        try {
+          selectedSourceImage = await resizeImage(file);
+          els.previewImage.src = selectedSourceImage.dataUrl;
+          els.previewText.textContent = `${file.name} を添付しました`;
+          els.filePreview.classList.add("show");
+        } catch (error) {
+          console.warn(error);
+          showToast("画像を読み込めませんでした");
+          els.screenshot.value = "";
+        }
+      });
+
       els.form.addEventListener("submit", (event) => {
         event.preventDefault();
         const title = els.title.value.trim();
@@ -729,14 +914,44 @@
             done: false
           })),
           memo: els.memo.value.trim(),
+          sourceImage: selectedSourceImage,
           createdAt: new Date().toISOString()
         });
 
         saveEvents();
         els.form.reset();
+        selectedSourceImage = null;
+        els.filePreview.classList.remove("show");
+        els.previewImage.removeAttribute("src");
+        els.previewText.textContent = "";
+        renderTemplateButtons();
         render();
         showToast("予定を追加しました");
       });
+    }
+
+    function renderTemplateButtons() {
+      const templates = carryTemplates[els.category.value] || [];
+      els.templateButtons.innerHTML = "";
+      templates.forEach((name) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "template-btn";
+        button.textContent = name;
+        button.addEventListener("click", () => addCarryText(name));
+        els.templateButtons.appendChild(button);
+      });
+    }
+
+    function addCarryText(name) {
+      const currentItems = els.items.value.split("\n").map((item) => item.trim()).filter(Boolean);
+      if (currentItems.includes(name)) {
+        showToast("すでに入っています");
+        return;
+      }
+      currentItems.push(name);
+      els.items.value = currentItems.join("\n");
+      showToast(`${name} を追加しました`);
     }
 
     function render() {
@@ -818,6 +1033,7 @@
             </div>
             <button class="danger-btn" type="button">取消</button>
           </div>
+          ${item.sourceImage?.dataUrl ? renderSourceImage(item.sourceImage) : ""}
           ${item.items.length ? `<div class="items">${item.items.map((carry) => renderCarryItem(item.id, carry)).join("")}</div>` : ""}
         `;
 
@@ -852,6 +1068,15 @@
           <input type="checkbox" data-event-id="${eventId}" data-carry-id="${item.id}" ${item.done ? "checked" : ""} />
           <span>${escapeHtml(item.name)}</span>
         </label>
+      `;
+    }
+
+    function renderSourceImage(sourceImage) {
+      return `
+        <div class="source-shot">
+          <span>配布資料のスクショ</span>
+          <img src="${sourceImage.dataUrl}" alt="${escapeHtml(sourceImage.name || "配布資料のスクショ")}" />
+        </div>
       `;
     }
 
@@ -947,7 +1172,12 @@
     }
 
     function saveEvents() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.events));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.events));
+      } catch (error) {
+        console.warn(error);
+        showToast("保存容量が足りません。古いスクショを減らしてください");
+      }
     }
 
     function showToast(message) {
@@ -965,6 +1195,34 @@
       const next = new Date(date);
       next.setDate(next.getDate() + days);
       return stripTime(next);
+    }
+
+    function resizeImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const image = new Image();
+          image.onload = () => {
+            const maxWidth = 1000;
+            const scale = Math.min(1, maxWidth / image.width);
+            const width = Math.round(image.width * scale);
+            const height = Math.round(image.height * scale);
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(image, 0, 0, width, height);
+            resolve({
+              name: file.name,
+              dataUrl: canvas.toDataURL("image/jpeg", .82)
+            });
+          };
+          image.onerror = reject;
+          image.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     }
 
     function toKey(date) {
