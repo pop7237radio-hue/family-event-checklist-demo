@@ -1173,6 +1173,7 @@
       renderChildOptions();
       els.child.value = name;
       els.childName.value = "";
+      render();
       showToast(`${name} を追加しました`);
     }
 
@@ -1542,7 +1543,7 @@
             <div>
               <div class="tag-row">
                 <span class="tag ${item.category}">${categoryLabels[item.category]}</span>
-                <span class="tag child">${escapeHtml(item.child)}</span>
+                <span class="tag child">${escapeHtml(displayChildName(item.child))}</span>
               </div>
               <h3 class="event-title">${escapeHtml(item.title)}</h3>
               <p class="event-note">${escapeHtml([item.time, item.memo].filter(Boolean).join(" / ")) || "メモなし"}</p>
@@ -1698,6 +1699,13 @@
         }
       }
       return ["上の子", "下の子"];
+    }
+
+    function displayChildName(name) {
+      const customNames = state.children.filter((child) => child !== "上の子" && child !== "下の子");
+      if (name === "上の子" && customNames[0]) return customNames[0];
+      if (name === "下の子" && customNames[1]) return customNames[1];
+      return name;
     }
 
     function saveEvents() {
