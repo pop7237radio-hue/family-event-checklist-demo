@@ -1237,7 +1237,7 @@
         els.ocrText.value = text;
         const draft = text ? applyOcrDraft(text) : null;
         const candidates = text ? extractScheduleCandidates(text) : [];
-        if (!candidates.length && draft?.fallbackCandidate) candidates.push(draft.fallbackCandidate);
+        if (!candidates.length && draft?.fallbackCandidate && hasJapanese(draft.fallbackCandidate.title)) candidates.push(draft.fallbackCandidate);
         renderOcrCandidates(candidates);
         const garbled = isLikelyGarbled(text);
         els.ocrStatus.textContent = garbled
@@ -1418,6 +1418,7 @@
     function cleanCandidateTitle(value) {
       return String(value || "")
         .replace(/[|｜]/g, " ")
+        .replace(/[A-Za-z]{2,}/g, " ")
         .replace(/^[\s・●○■□◆◇\-—~〜、。.,]+/, "")
         .replace(/\s+/g, " ")
         .trim()
@@ -1427,8 +1428,13 @@
 
     function pushCandidate(candidates, month, day, weekday, title, raw) {
       if (!month || !day || day > 31 || !title || title.length < 2) return;
+      if (!hasJapanese(title)) return;
       if (/令和|年度|予定|主な行事|関連行事|曜日|月日/.test(title)) return;
       candidates.push({ month, day, weekday, title, raw });
+    }
+
+    function hasJapanese(value) {
+      return /[\u3040-\u30ff\u3400-\u9fff]/.test(String(value || ""));
     }
 
     function normalizeText(text) {
@@ -1476,7 +1482,9 @@
       const skipWords = /持ち物|準備|お願い|お知らせ|連絡|日時|場所|保護者|締切|提出|令和|202\d|\d+月\d+日|\d+\/\d+/;
       const candidates = lines
         .map((line) => line.replace(/^[・●○■□◆◇\-\s]+/, "").trim())
+        .map((line) => line.replace(/[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim())
         .filter((line) => line.length >= 3 && line.length <= 28)
+        .filter((line) => hasJapanese(line))
         .filter((line) => !skipWords.test(normalizeText(line)));
       const eventWord = candidates.find((line) => /遠足|参観|運動会|発表会|懇談|面談|健診|検診|集金|プール|避難訓練|給食|弁当|提出/.test(line));
       return eventWord || candidates[0] || "";
