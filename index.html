@@ -1237,7 +1237,7 @@
         els.ocrText.value = text;
         const draft = text ? applyOcrDraft(text) : null;
         const candidates = text ? extractScheduleCandidates(text) : [];
-        if (!candidates.length && draft?.fallbackCandidate && hasJapanese(draft.fallbackCandidate.title)) candidates.push(draft.fallbackCandidate);
+        if (!candidates.length && draft?.fallbackCandidate && isUsefulCandidateTitle(draft.fallbackCandidate.title)) candidates.push(draft.fallbackCandidate);
         renderOcrCandidates(candidates);
         const garbled = isLikelyGarbled(text);
         els.ocrStatus.textContent = garbled
@@ -1245,7 +1245,7 @@
           : candidates.length
             ? "予定候補を作りました。追加したい予定を押すとフォームに入ります。"
           : draft?.changed
-            ? "日付・予定名・持ち物の下書きを自動反映しました。確認して追加してください。"
+            ? "読み取りました。候補化できる日本語が少ない時は、予定名を確認して追加してください。"
             : text
               ? "読み取りました。日付が取れない時は、日付だけ選んで追加してください。"
               : "文字を読み取れませんでした。スクショを拡大して撮ると改善します。";
@@ -1428,13 +1428,22 @@
 
     function pushCandidate(candidates, month, day, weekday, title, raw) {
       if (!month || !day || day > 31 || !title || title.length < 2) return;
-      if (!hasJapanese(title)) return;
+      if (!isUsefulCandidateTitle(title)) return;
       if (/令和|年度|予定|主な行事|関連行事|曜日|月日/.test(title)) return;
       candidates.push({ month, day, weekday, title, raw });
     }
 
     function hasJapanese(value) {
       return /[\u3040-\u30ff\u3400-\u9fff]/.test(String(value || ""));
+    }
+
+    function isUsefulCandidateTitle(value) {
+      const text = String(value || "").trim();
+      if (!hasJapanese(text)) return false;
+      if (/https?:|www\.|\.jp|\.com|@|IMG_|ファイル|選択|未選択|戻る|共有|更新/.test(text)) return false;
+      if (/^\d{1,2}:\d{2}/.test(text)) return false;
+      const japaneseCount = (text.match(/[\u3040-\u30ff\u3400-\u9fff]/g) || []).length;
+      return japaneseCount >= 2;
     }
 
     function normalizeText(text) {
@@ -1484,7 +1493,7 @@
         .map((line) => line.replace(/^[・●○■□◆◇\-\s]+/, "").trim())
         .map((line) => line.replace(/[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim())
         .filter((line) => line.length >= 3 && line.length <= 28)
-        .filter((line) => hasJapanese(line))
+        .filter((line) => isUsefulCandidateTitle(line))
         .filter((line) => !skipWords.test(normalizeText(line)));
       const eventWord = candidates.find((line) => /遠足|参観|運動会|発表会|懇談|面談|健診|検診|集金|プール|避難訓練|給食|弁当|提出/.test(line));
       return eventWord || candidates[0] || "";
